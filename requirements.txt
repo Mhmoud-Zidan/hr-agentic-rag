@@ -1,0 +1,36 @@
+# Northwind HR Agentic RAG -- direct dependencies only.
+#
+# Deliberately NOT a full `pip freeze`: transitive packages are left to the
+# resolver so this file stays readable and portable. A previous version was a
+# PowerShell freeze written as UTF-16, which pip on Linux cannot read, and it
+# pinned Windows-only packages that do not exist in the container.
+#
+# The container targets Python 3.12 (see Dockerfile), not the 3.14 used for
+# local development: chromadb / onnxruntime / fastembed ship compiled wheels
+# that lag new CPython releases, and a missing wheel fails at deploy time.
+
+# --- retrieval / indexing ---
+chromadb==1.5.9
+fastembed==0.8.0
+tokenizers==0.23.2
+huggingface_hub==1.32.0
+onnxruntime==1.30.0
+numpy==2.5.3
+
+# --- corpus parsing ---
+beautifulsoup4==4.15.0
+lxml==6.1.3
+
+# --- agent, MCP, LLM ---
+mcp==2.2.0
+groq==1.7.0
+
+# --- web application ---
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+
+# --- configuration ---
+python-dotenv==1.2.3
+
+# --- tests (also used by CI) ---
+pytest==9.1.1

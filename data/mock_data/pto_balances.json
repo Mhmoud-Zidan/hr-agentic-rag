@@ -1,0 +1,102 @@
+{
+  "EMP-101": {
+    "employee_id": "EMP-101",
+    "pto_balance_days": 14.0,
+    "sick_balance_days": 6,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": [
+      {
+        "request_id": "REQ-2026-0141",
+        "start_date": "2026-10-05",
+        "end_date": "2026-10-06",
+        "days": 2.0,
+        "submitted_date": "2026-09-08",
+        "status": "pending",
+        "approver_id": "EMP-004"
+      }
+    ]
+  },
+  "EMP-102": {
+    "employee_id": "EMP-102",
+    "pto_balance_days": 3.3,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-103": {
+    "employee_id": "EMP-103",
+    "pto_balance_days": 8.5,
+    "sick_balance_days": 5,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-104": {
+    "employee_id": "EMP-104",
+    "pto_balance_days": 1.5,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-105": {
+    "employee_id": "EMP-105",
+    "pto_balance_days": 19.0,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": [
+      {
+        "request_id": "REQ-2026-0158",
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-06",
+        "days": 5.0,
+        "submitted_date": "2026-09-11",
+        "status": "pending",
+        "approver_id": "EMP-006"
+      }
+    ]
+  },
+  "EMP-106": {
+    "employee_id": "EMP-106",
+    "pto_balance_days": 0.0,
+    "sick_balance_days": 0,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-004": {
+    "employee_id": "EMP-004",
+    "pto_balance_days": 11.0,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-005": {
+    "employee_id": "EMP-005",
+    "pto_balance_days": 7.0,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-006": {
+    "employee_id": "EMP-006",
+    "pto_balance_days": 15.5,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  },
+  "EMP-001": {
+    "employee_id": "EMP-001",
+    "pto_balance_days": 4.0,
+    "sick_balance_days": 8,
+    "carryover_days": 0.0,
+    "carryover_expiry": "2026-03-31",
+    "pending_requests": []
+  }
+}

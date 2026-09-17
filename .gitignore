@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environment
+.venv/
+venv/
+
+# Built artefacts -- the index is rebuilt by scripts/build_index.py
+chroma_db/
+storage/
+
+# Secrets -- never commit API keys
+.env
+.env.*
+!.env.example
+
+# Model caches
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db

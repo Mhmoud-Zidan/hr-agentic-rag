@@ -1,0 +1,102 @@
+{
+  "EMP-101": {
+    "employee_id": "EMP-101",
+    "benefits_eligible": true,
+    "medical_plan_tier": "employee_plus_spouse",
+    "dental_plan_tier": "employee_plus_spouse",
+    "vision_plan_tier": "employee_only",
+    "retirement_401k_contribution_percent": 6.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": true
+  },
+  "EMP-102": {
+    "employee_id": "EMP-102",
+    "benefits_eligible": true,
+    "medical_plan_tier": "employee_only",
+    "dental_plan_tier": "employee_only",
+    "vision_plan_tier": null,
+    "retirement_401k_contribution_percent": 3.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": false
+  },
+  "EMP-103": {
+    "employee_id": "EMP-103",
+    "benefits_eligible": false,
+    "medical_plan_tier": null,
+    "dental_plan_tier": null,
+    "vision_plan_tier": null,
+    "retirement_401k_contribution_percent": 4.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": true
+  },
+  "EMP-104": {
+    "employee_id": "EMP-104",
+    "benefits_eligible": true,
+    "medical_plan_tier": "employee_only",
+    "dental_plan_tier": "employee_only",
+    "vision_plan_tier": "employee_only",
+    "retirement_401k_contribution_percent": 5.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": true
+  },
+  "EMP-105": {
+    "employee_id": "EMP-105",
+    "benefits_eligible": true,
+    "medical_plan_tier": "ireland_schedule",
+    "dental_plan_tier": "ireland_schedule",
+    "vision_plan_tier": "ireland_schedule",
+    "retirement_401k_contribution_percent": 0.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": true
+  },
+  "EMP-106": {
+    "employee_id": "EMP-106",
+    "benefits_eligible": false,
+    "medical_plan_tier": null,
+    "dental_plan_tier": null,
+    "vision_plan_tier": null,
+    "retirement_401k_contribution_percent": 0.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": false
+  },
+  "EMP-004": {
+    "employee_id": "EMP-004",
+    "benefits_eligible": true,
+    "medical_plan_tier": "family",
+    "dental_plan_tier": "family",
+    "vision_plan_tier": "family",
+    "retirement_401k_contribution_percent": 6.0,
+    "dependent_care_fsa_annual": 5000,
+    "wellness_stipend_enrolled": true
+  },
+  "EMP-005": {
+    "employee_id": "EMP-005",
+    "benefits_eligible": true,
+    "medical_plan_tier": "family",
+    "dental_plan_tier": "employee_plus_spouse",
+    "vision_plan_tier": "family",
+    "retirement_401k_contribution_percent": 5.0,
+    "dependent_care_fsa_annual": 2500,
+    "wellness_stipend_enrolled": false
+  },
+  "EMP-006": {
+    "employee_id": "EMP-006",
+    "benefits_eligible": true,
+    "medical_plan_tier": "ireland_schedule",
+    "dental_plan_tier": "ireland_schedule",
+    "vision_plan_tier": null,
+    "retirement_401k_contribution_percent": 0.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": true
+  },
+  "EMP-001": {
+    "employee_id": "EMP-001",
+    "benefits_eligible": true,
+    "medical_plan_tier": "family",
+    "dental_plan_tier": "family",
+    "vision_plan_tier": "family",
+    "retirement_401k_contribution_percent": 6.0,
+    "dependent_care_fsa_annual": 0,
+    "wellness_stipend_enrolled": true
+  }
+}

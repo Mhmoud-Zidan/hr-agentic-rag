@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="doc_id" content="APR-01">
+  <meta name="title" content="Approvals and Escalation Matrix">
+  <meta name="version" content="v4.2">
+  <meta name="effective_date" content="2026-01-01">
+  <meta name="owner" content="People Operations">
+  <title>Approvals and Escalation Matrix (APR-01)</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 52rem; margin: 2rem auto; line-height: 1.55; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: .4rem; }
+    h2 { margin-top: 2.2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
+    th, td { border: 1px solid #ccc; padding: .45rem; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; }
+    .src { white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<h1>Approvals and Escalation Matrix (APR-01)</h1>
+
+<h2>1. Purpose and How to Use This Matrix</h2>
+
+<p>This document consolidates every approval threshold and escalation trigger in the
+Northwind policy library into one place, with a pointer to the policy that owns each one.
+It exists so that a manager or employee can find out who approves something without
+knowing in advance which policy governs it.</p>
+
+<h3>1.1 This matrix is a map, not the territory</h3>
+
+<p><strong>Every source policy governs its own rules.</strong> This matrix restates
+thresholds for navigation only. Where this document and a source policy differ, the source
+policy is correct and this one is out of date, and People Operations should be told so it
+can be fixed.</p>
+
+<p>This is the one document in the library that deliberately repeats numbers defined
+elsewhere. Every other document cross-references rather than restating, precisely so that
+there is a single owner for each rule. Read an entry here, then read the source section
+before acting on anything consequential.</p>
+
+<h3>1.2 How to read an entry</h3>
+
+<p>Each row gives the situation, what approval is required, and the owning document and
+section. Where a row lists more than one approver, <strong>all</strong> of them are
+required unless the row says otherwise — approvals stack, they do not substitute.</p>
+
+<h3>1.3 The general rule on approvals</h3>
+
+<p>Three principles apply across every policy:</p>
+
+<ul>
+  <li><strong>Approvals stack.</strong> A higher approval never replaces a lower one. Where
+  a threshold requires a manager and a second approver, both must be recorded.</li>
+  <li><strong>Nobody approves their own request</strong>, and nobody approves a request from
+  which they personally benefit. Where the ordinary approver is conflicted, the request
+  routes one level up.</li>
+  <li><strong>A prohibition is not a high threshold.</strong> Some rules in this library
+  cannot be approved by anyone at any level. These are marked <strong>PROHIBITED</strong>
+  below, and there is no escalation route for them.</li>
+</ul>
+
+<h2>2. Leave Approvals (PTO-01)</h2>
+
+<table>
+  <tr><th>Situation</th><th>Approval required</th><th class="src">Source</th></tr>
+  <tr><td>PTO request, 1–2 days</td><td>Direct manager. Minimum 3 business days'
+  notice.</td><td class="src">PTO-01 §3.1, §3.2</td></tr>
+  <tr><td>PTO request, 3–5 days</td><td>Direct manager. Minimum 10 business days'
+  notice.</td><td class="src">PTO-01 §3.1</td></tr>
+  <tr><td>PTO request, 6 or more days</td><td>Direct manager. Minimum 20 business days'
+  notice.</td><td class="src">PTO-01 §3.1</td></tr>
+  <tr><td>PTO request, 10 or more consecutive days</td><td>Direct manager
+  <strong>and</strong> department head. Notice per the length tier above.</td>
+  <td class="src">PTO-01 §3.2</td></tr>
+  <tr><td>Exception to a PTO notice period</td><td>Direct manager <strong>and</strong>
+  department head, whatever the length.</td><td class="src">PTO-01 §3.5</td></tr>
+  <tr><td>PTO before day 91 of employment</td><td><strong>PROHIBITED.</strong> Accrues but
+  cannot be taken.</td><td class="src">PTO-01 §2.4</td></tr>
+  <tr><td>PTO exceeding the available balance</td><td><strong>PROHIBITED.</strong> Balances
+  cannot go negative.</td><td class="src">PTO-01 §2.3</td></tr>
+  <tr><td>Sick leave</td><td>No approval and no notice. Notify the manager.</td>
+  <td class="src">PTO-01 §6.2</td></tr>
+  <tr><td>Bereavement leave</td><td>No approval and no notice. Notify the manager.</td>
+  <td class="src">PTO-01 §7.2</td></tr>
+  <tr><td>Parental leave</td><td>Entitlement follows tenure; requested through People
+  Operations. The manager owns coverage, not the entitlement.</td>
+  <td class="src">PTO-01 §8.3</td></tr>
+  <tr><td>Unpaid leave of absence</td><td>HR <strong>and</strong> department head.</td>
+  <td class="src">PTO-01 §9</td></tr>
+  <tr><td>Employee has no manager recorded</td><td>Routes to People Operations, which
+  records the approval.</td><td class="src">PTO-01 §3.4</td></tr>
+</table>
+
+<h3>2.1 The trap in this table</h3>
+
+<p>The notice tier and the second-approver threshold are separate rules that both apply. A
+request of 10 or more consecutive days needs the longest notice period <em>and</em> two
+approvals. And a request can have a sufficient balance and still fail on notice — the two
+tests are independent, and notice is the more common reason a request is declined.</p>
+
+<h2>3. Work Location Approvals (REM-01)</h2>
+
+<table>
+  <tr><th>Situation</th><th>Approval required</th><th class="src">Source</th></tr>
+  <tr><td>Hybrid in-office expectation</td><td>No approval. Applies automatically within 50
+  miles of an office.</td><td class="src">REM-01 §2</td></tr>
+  <tr><td>Fully remote status</td><td>VP approval. Recorded by People Operations.</td>
+  <td class="src">REM-01 §3</td></tr>
+  <tr><td>Another US state, up to 10 consecutive business days</td><td>No approval. Tell
+  your manager.</td><td class="src">REM-01 §4.1</td></tr>
+  <tr><td>Another US state, 11–30 consecutive business days</td><td>Direct manager.</td>
+  <td class="src">REM-01 §4.2</td></tr>
+  <tr><td>Another US state, more than 30 consecutive business days</td><td>HR
+  <strong>and</strong> Tax review.</td><td class="src">REM-01 §4.3, TAX-01 §3</td></tr>
+  <tr><td>International, any length</td><td>Approval always required. Minimum 30 calendar
+  days' notice in every tier.</td><td class="src">REM-01 §5, §7.1</td></tr>
+  <tr><td>International, 14 calendar days or fewer</td><td>Manager approval, HR
+  notification, <strong>and</strong> Security review.</td><td class="src">REM-01 §5.1</td></tr>
+  <tr><td>International, 15–30 calendar days</td><td>Manager, HR, <strong>and</strong> Tax
+  approval, plus Security review.</td><td class="src">REM-01 §5.2</td></tr>
+  <tr><td>International, more than 30 calendar days</td><td><strong>PROHIBITED.</strong>
+  Only route is transfer to a local entity.</td><td class="src">REM-01 §5.3</td></tr>
+  <tr><td>Any country other than Ireland, Canada, or the United Kingdom</td>
+  <td><strong>PROHIBITED.</strong> No VP override, no exception route.</td>
+  <td class="src">REM-01 §6</td></tr>
+  <tr><td>Travel to a high-risk country</td><td>Loaner device issued by Security,
+  required.</td><td class="src">SEC-01 §5.4</td></tr>
+  <tr><td>Restricted data accessed from outside the US or EU</td>
+  <td><strong>PROHIBITED.</strong> A location approval is not a data-access
+  approval.</td><td class="src">SEC-01 §3</td></tr>
+  <tr><td>Extending an approved international stay</td><td>New request, assessed at the
+  <em>total</em> length.</td><td class="src">REM-01 §7.5</td></tr>
+  <tr><td>Reporting a location change of more than 5 business days</td><td>No approval, but
+  reporting is mandatory.</td><td class="src">TAX-01 §5</td></tr>
+</table>
+
+<h3>3.1 The trap in this table</h3>
+
+<p>Three separate rules can each block an international request independently: the country,
+the duration, and the notice. A request can fail all three at once, and none of them can be
+escalated. Managers should decline such requests directly rather than forwarding them for a
+decision nobody can make.</p>
+
+<p>Note also that Canada and the United Kingdom are approved destinations under REM-01 but
+sit outside the US and EU for the purposes of the Restricted data rule in SEC-01. An
+employee whose role touches that data class can be approved to travel there and still be
+unable to do their job from there.</p>
+
+<h2>4. Expense Approvals (EXP-01)</h2>
+
+<table>
+  <tr><th>Situation</th><th>Approval required</th><th class="src">Source</th></tr>
+  <tr><td>Expense of $250 or less</td><td>No approval beyond submission.</td>
+  <td class="src">EXP-01 §4</td></tr>
+  <tr><td>Expense above $250</td><td>Manager approval.</td><td class="src">EXP-01 §4</td></tr>
+  <tr><td>Expense above $2,000</td><td>Manager <strong>and</strong> Finance approval.</td>
+  <td class="src">EXP-01 §4</td></tr>
+  <tr><td>Receipt requirement</td><td>Required above $25.</td><td class="src">EXP-01 §3.2</td></tr>
+  <tr><td>Submission deadline</td><td>Within 45 days of the expense date. Late claims are
+  discretionary.</td><td class="src">EXP-01 §3.1</td></tr>
+  <tr><td>Home office stipend</td><td>Subject to a tenure requirement, then the ordinary
+  approval thresholds.</td><td class="src">EXP-01 §5.1</td></tr>
+  <tr><td>Office chair</td><td>Covered by the home office stipend. <strong>Not separately
+  reimbursable.</strong></td><td class="src">EXP-01 §5.3</td></tr>
+  <tr><td>Laptop</td><td><strong>Never an expense.</strong> Issued by IT.</td>
+  <td class="src">EXP-01 §9.1, EQP-01 §1.1</td></tr>
+  <tr><td>Alcohol, fines, personal entertainment, spouse travel</td>
+  <td><strong>PROHIBITED.</strong> Not approvable at any level.</td>
+  <td class="src">EXP-01 §8.1</td></tr>
+  <tr><td>Premium economy airfare</td><td>Permitted for flights longer than 6 hours.</td>
+  <td class="src">EXP-01 §7.2</td></tr>
+  <tr><td>Splitting an expense to stay under a threshold</td><td><strong>PROHIBITED.</strong>
+  Treated as a conduct matter.</td><td class="src">EXP-01 §4.2, CON-01 §3.4</td></tr>
+  <tr><td>Approver benefits personally from the expense</td><td>Routes one level up.</td>
+  <td class="src">EXP-01 §4.4</td></tr>
+</table>
+
+<h3>4.1 The trap in this table</h3>
+
+<p>Two questions are easy to conflate. "Is it reimbursable?" and "who approves it?" are
+separate, and an approval never makes a non-reimbursable item reimbursable. A laptop is the
+clearest case: no approver at any level can turn it into an expense, because it is provided
+under EQP-01 instead. A chair is the second: it is reimbursable, but only out of the home
+office stipend, which has a tenure requirement of its own.</p>
+
+<h2>5. Equipment Approvals (EQP-01)</h2>
+
+<table>
+  <tr><th>Situation</th><th>Approval required</th><th class="src">Source</th></tr>
+  <tr><td>Laptop provision and scheduled refresh</td><td>No approval. IT initiates on a
+  36-month cycle.</td><td class="src">EQP-01 §2.2</td></tr>
+  <tr><td>Early laptop replacement</td><td>Manager <strong>and</strong> IT approval, plus
+  documented failure.</td><td class="src">EQP-01 §2.3</td></tr>
+  <tr><td>First monitor</td><td>No approval. One 27-inch monitor provided.</td>
+  <td class="src">EQP-01 §3.1</td></tr>
+  <tr><td>Second monitor</td><td>Manager approval.</td><td class="src">EQP-01 §3.1</td></tr>
+  <tr><td>Peripherals and furniture</td><td>Not issued by IT. Home office stipend.</td>
+  <td class="src">EQP-01 §3.2, EXP-01 §5</td></tr>
+  <tr><td>Lost or stolen equipment</td><td>No approval. Report within 24 hours, and as a
+  security incident within 2 hours of discovery.</td>
+  <td class="src">EQP-01 §5.2, SEC-01 §8</td></tr>
+  <tr><td>Equipment return on termination</td><td>No approval. Within 5 business days.</td>
+  <td class="src">EQP-01 §6</td></tr>
+  <tr><td>Accessibility equipment</td><td>Raised with People Operations. Not limited by the
+  monitor provision or the stipend.</td><td class="src">EQP-01 §3.4</td></tr>
+</table>
+
+<h2>6. Benefits and Onboarding Gates (BEN-01, ONB-01)</h2>
+
+<p>These are eligibility gates rather than approvals. Nobody approves them and nobody can
+waive them.</p>
+
+<table>
+  <tr><th>Situation</th><th>Gate</th><th class="src">Source</th></tr>
+  <tr><td>Medical, dental, vision eligibility</td><td>Scheduled 30 or more hours per
+  week.</td><td class="src">BEN-01 §2.1</td></tr>
+  <tr><td>Wellness stipend eligibility</td><td>Scheduled 20 or more hours per week.</td>
+  <td class="src">BEN-01 §8.3</td></tr>
+  <tr><td>Retirement plan eligibility</td><td>Day 1. No hours threshold.</td>
+  <td class="src">BEN-01 §7.1</td></tr>
+  <tr><td>Health coverage start</td><td>First of the month following 30 days of
+  employment.</td><td class="src">BEN-01 §3</td></tr>
+  <tr><td>Changing elections</td><td>Open enrollment, or within 30 days of a qualifying life
+  event.</td><td class="src">BEN-01 §5, §6</td></tr>
+  <tr><td>Contractors</td><td>Not eligible for any benefit.</td><td class="src">BEN-01 §10.3</td></tr>
+  <tr><td>Employees of the Irish entity</td><td>Separate benefits schedule.</td>
+  <td class="src">BEN-01 §9</td></tr>
+  <tr><td>Probation period and reviews</td><td>Defined in ONB-01. Benefits active
+  throughout, subject to the waiting period.</td><td class="src">ONB-01 §3, §4.1</td></tr>
+  <tr><td>Probation extension</td><td>Once only, up to 30 additional days.</td>
+  <td class="src">ONB-01 §3.4</td></tr>
+</table>
+
+<h3>6.1 The trap in this table</h3>
+
+<p>"Part-time" is not a single eligibility answer. A part-time employee scheduled between
+the two thresholds is eligible for the retirement plan and the wellness stipend and not for
+health coverage — one record, three answers. And a contractor's ineligibility follows from
+not being an employee, not from their hours, so answering by reference to hours is wrong
+even when the conclusion happens to match.</p>
+
+<h2>7. Security and Conduct Escalation (SEC-01, CON-01)</h2>
+
+<table>
+  <tr><th>Situation</th><th>Requirement</th><th class="src">Source</th></tr>
+  <tr><td>Security incident</td><td>Report within 2 hours of discovery.</td>
+  <td class="src">SEC-01 §8</td></tr>
+  <tr><td>VPN</td><td>Required for Confidential and Restricted access, from any
+  location.</td><td class="src">SEC-01 §4.1</td></tr>
+  <tr><td>Public Wi-Fi</td><td>Permitted with the VPN active only.</td>
+  <td class="src">SEC-01 §4.2</td></tr>
+  <tr><td>Personal devices</td><td>Email and chat only, with MDM enrolment.</td>
+  <td class="src">SEC-01 §5.2</td></tr>
+  <tr><td>MFA</td><td>Mandatory. Hardware key required for Restricted access.</td>
+  <td class="src">SEC-01 §7</td></tr>
+  <tr><td>Harassment, discrimination, safety, financial impropriety</td><td><strong>Mandatory
+  escalation</strong> to People Operations, even if the reporter asks otherwise.</td>
+  <td class="src">CON-01 §3</td></tr>
+  <tr><td>Acknowledgment of a concern</td><td>Within 2 business days.</td>
+  <td class="src">CON-01 §4.1</td></tr>
+  <tr><td>Investigation</td><td>Target of 15 business days.</td><td class="src">CON-01 §4.2</td></tr>
+  <tr><td>Retaliation</td><td><strong>PROHIBITED, absolutely.</strong> No conditions.</td>
+  <td class="src">CON-01 §5</td></tr>
+</table>
+
+<h2>8. Escalation Paths and Edge Cases</h2>
+
+<h3>8.1 When the approval chain terminates</h3>
+
+<p>Some employees have no manager recorded — the CEO by design. Where an approval chain has
+no next step, the request routes to People Operations, which records the approval. This is
+an expected condition with a defined route, not a data error to be escalated.</p>
+
+<h3>8.2 When the approver is conflicted</h3>
+
+<p>Nobody approves their own request, and nobody approves a request they benefit from. The
+request routes one level up, or to People Operations where there is no level up.</p>
+
+<h3>8.3 When no approver exists</h3>
+
+<p>For anything marked <strong>PROHIBITED</strong> in this matrix, there is no approver and
+no escalation path. Forwarding such a request upward wastes the requester's time and
+implies a possibility that does not exist. The correct response is to decline it, state
+which rule applies, and set out the alternatives that <em>are</em> available.</p>
+
+<h3>8.4 When two policies both apply</h3>
+
+<p>Where a situation touches more than one policy, every applicable requirement applies
+independently and the most restrictive governs. A trip that combines leave and work needs
+both a leave approval and a location approval, and neither implies the other. Approval
+under one policy never waives a requirement under another.</p>
+
+<h3>8.5 When a request is out of scope entirely</h3>
+
+<p>Where an employee asks about something no Northwind policy covers, the correct answer is
+that the policy library does not address it, and the question should be referred to People
+Operations. An absence of coverage is not an implied permission, and no approver should
+infer an entitlement from silence.</p>
+
+<h2>9. Document Control</h2>
+
+<h3>9.1 Ownership</h3>
+
+<p>This matrix is owned by People Operations. Each underlying rule is owned by the policy
+in its source column, and changes are made there first. This document is updated to follow;
+it never leads.</p>
+
+<h3>9.2 Reporting an inconsistency</h3>
+
+<p>Anyone who finds a discrepancy between this matrix and a source policy should tell People
+Operations. Until it is corrected, follow the source policy.</p>
+
+<h3>9.3 Version and review</h3>
+
+<p>This is version v4.2, effective 2026-01-01. It supersedes all prior versions of the
+Northwind Approvals and Escalation Matrix. It is reviewed whenever any source policy
+changes and at least annually.</p>
+
+</body>
+</html>
