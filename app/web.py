@@ -58,6 +58,11 @@ class Turn(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=MAX_QUESTION_CHARS)
     history: list[Turn] = Field(default_factory=list, max_length=20)
+    #: Which configured provider to answer with. Validated against the server's
+    #: own list -- a caller can pick among the keys this deployment holds, but
+    #: cannot name an arbitrary endpoint and redirect our prompts (and our
+    #: quota) somewhere else.
+    provider: str | None = Field(default=None, max_length=32)
 
 
 class AppState:
@@ -135,6 +140,7 @@ async def health() -> JSONResponse:
 
     try:
         payload.update(await state.agent.health())
+        payload["providers"] = state.agent.available_providers()
     except Exception as exc:
         payload["status"] = "degraded"
         payload["mcp_connected"] = False
@@ -163,7 +169,9 @@ async def chat(request: ChatRequest) -> JSONResponse:
         # One session, one pipe: serialise turns rather than interleave them.
         async with state.lock:
             response = await asyncio.wait_for(
-                state.agent.ask(request.message, history=history),
+                state.agent.ask(
+                    request.message, history=history, provider=request.provider
+                ),
                 timeout=TURN_TIMEOUT_SECONDS,
             )
     except asyncio.TimeoutError:

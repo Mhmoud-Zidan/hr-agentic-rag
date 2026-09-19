@@ -117,6 +117,25 @@
     padding: 5px 10px; font-size: 12.5px; font-weight: 500; border-radius: 20px;
   }
   .hint { color: var(--muted); font-size: 13px; }
+  .controls {
+    max-width: 820px; margin: 9px auto 0; display: flex; align-items: center;
+    gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted);
+  }
+  .controls select {
+    border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px;
+    background: var(--bg); color: var(--ink); font: inherit; font-size: 12.5px;
+  }
+  .tag {
+    border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .tag.free { background: #e4f1e4; color: #1f5720; }
+  .tag.paid { background: var(--warn-bg); color: var(--warn-ink);
+              border: 1px solid var(--warn-line); }
+  @media (prefers-color-scheme: dark) {
+    .tag.free { background: #1e2d1f; color: #9ed4a0; }
+  }
+  .model-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -139,6 +158,12 @@ For anything about your own entitlements, include your employee ID (for example 
   <div class="row">
     <textarea id="input" placeholder="Ask an HR question…" autofocus></textarea>
     <button id="send" type="submit">Send</button>
+  </div>
+  <div class="controls">
+    <label for="provider">Model provider</label>
+    <select id="provider"></select>
+    <span id="provider-tag"></span>
+    <span id="provider-note"></span>
   </div>
   <div class="examples" id="examples"></div>
 </form>
@@ -312,7 +337,8 @@ function render(wrap, data) {
 
   if (data.trace && data.trace.length) {
     const label = `Tool calls (${data.trace.length}) · ` +
-                  `${data.iterations} iteration(s) · ${data.latency_ms} ms`;
+                  `${data.iterations} iteration(s) · ${data.latency_ms} ms · ` +
+                  `${data.model}`;
     addDetails(wrap, label, d => {
       const box = el('div', 'card');
       for (const t of data.trace) {
@@ -329,13 +355,63 @@ function render(wrap, data) {
   }
 }
 
+const providerSelect = document.getElementById('provider');
+const providerTag = document.getElementById('provider-tag');
+const providerNote = document.getElementById('provider-note');
+
+// Remembered per browser so a demo does not silently fall back to the paid
+// provider after a reload. try/catch because storage throws in private mode.
+function savedProvider() {
+  try { return localStorage.getItem('provider'); } catch { return null; }
+}
+function saveProvider(name) {
+  try { localStorage.setItem('provider', name); } catch {}
+}
+
+function renderProviderTag() {
+  const option = providerSelect.selectedOptions[0];
+  if (!option) return;
+  const paid = option.dataset.paid === 'paid';
+  providerTag.className = 'tag ' + (paid ? 'paid' : 'free');
+  providerTag.textContent = paid ? 'paid — uses credit' : 'free tier';
+  providerNote.textContent = paid
+    ? '· fast, no rate limit'
+    : '· may be slow or rate limited';
+}
+
+function populateProviders(providers) {
+  if (!providers || !providers.length) return;
+  providerSelect.innerHTML = '';
+  for (const p of providers) {
+    const option = document.createElement('option');
+    option.value = p.name;
+    option.textContent = `${p.name} (${p.model})`;
+    option.dataset.paid = p.paid || '';
+    providerSelect.appendChild(option);
+  }
+  // Default to a free provider so the paid key is only spent deliberately.
+  const remembered = savedProvider();
+  const free = providers.find(p => p.paid !== 'paid');
+  const wanted = providers.some(p => p.name === remembered)
+    ? remembered
+    : (free ? free.name : providers[0].name);
+  providerSelect.value = wanted;
+  renderProviderTag();
+}
+
+providerSelect.onchange = () => {
+  saveProvider(providerSelect.value);
+  renderProviderTag();
+};
+
 async function refreshHealth() {
   try {
     const r = await fetch('/health');
     const d = await r.json();
     statusEl.textContent = r.ok
-      ? `${d.tool_count} tools · ${d.model}`
+      ? `${d.tool_count} tools`
       : `degraded: ${d.error || 'unavailable'}`;
+    if (r.ok) populateProviders(d.providers);
   } catch {
     statusEl.textContent = 'offline';
   }
@@ -358,7 +434,7 @@ form.onsubmit = async (event) => {
     const res = await fetch('/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history })
+      body: JSON.stringify({ message, history, provider: providerSelect.value })
     });
     const data = await res.json();
 

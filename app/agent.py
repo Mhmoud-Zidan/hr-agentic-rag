@@ -198,6 +198,10 @@ PROVIDERS: dict[str, Provider] = {
     ),
 }
 
+#: Cost label shown in the UI so a demo does not spend paid credit by accident.
+PAID_PROVIDERS = {"groq": "free", "openrouter": "free", "deepseek": "paid",
+                  "openai": "paid"}
+
 #: Which provider to use. Overridden per run with --provider in the evaluation
 #: harness, so a rate-limited provider does not block an evaluation.
 DEFAULT_PROVIDER = os.environ.get("LLM_PROVIDER", "groq")
@@ -420,6 +424,11 @@ class HRAgent:
         self._stack: AsyncExitStack | None = None
         self._tools: list[dict[str, Any]] = []
         self._client: Any = None
+        # One HTTP client per provider, built on first use. The MCP session and
+        # the loaded index are shared across all of them -- only the model
+        # endpoint differs, so switching provider per request costs nothing but
+        # a client object.
+        self._clients: dict[str, Any] = {}
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -447,11 +456,7 @@ class HRAgent:
             # means nothing to OpenRouter. Use the provider's own default.
             self.model = provider.default_model
 
-        self._client = AsyncOpenAI(
-            api_key=provider.api_key,
-            base_url=provider.base_url,
-            default_headers=provider.headers or None,
-        )
+        self._client = self._client_for(provider)
         self._stack = AsyncExitStack()
 
         params = StdioServerParameters(
@@ -463,6 +468,47 @@ class HRAgent:
         self._session = await self._stack.enter_async_context(ClientSession(read, write))
         await self._session.initialize()
         self._tools = await self._load_tool_schemas()
+
+    def _client_for(self, provider: Provider) -> Any:
+        """Build (and cache) the HTTP client for one provider."""
+        from openai import AsyncOpenAI
+
+        if provider.name not in self._clients:
+            self._clients[provider.name] = AsyncOpenAI(
+                api_key=provider.api_key,
+                base_url=provider.base_url,
+                default_headers=provider.headers or None,
+            )
+        return self._clients[provider.name]
+
+    def available_providers(self) -> list[dict[str, str]]:
+        """Providers this deployment actually has a key for.
+
+        Only configured providers are listed, and only these are accepted from a
+        request. A caller must never be able to name an arbitrary endpoint --
+        that would turn the chat box into a way to make this server send its
+        prompts, and its API keys' quota, wherever the caller likes.
+        """
+        return [
+            {"name": name, "model": p.default_model, "paid": PAID_PROVIDERS.get(name, "")}
+            for name, p in PROVIDERS.items()
+            if p.api_key
+        ]
+
+    def resolve_request_provider(
+        self, name: str | None
+    ) -> tuple[Provider, str]:
+        """Validate a per-request provider choice and return it with its model."""
+        if not name:
+            return (self.provider or resolve_provider(self.provider_name), self.model)
+        allowed = {p["name"] for p in self.available_providers()}
+        if name not in allowed:
+            raise AgentError(
+                f"Provider {name!r} is not configured on this server. "
+                f"Available: {', '.join(sorted(allowed)) or 'none'}."
+            )
+        provider = PROVIDERS[name]
+        return provider, provider.default_model
 
     async def aclose(self) -> None:
         if self._stack is not None:
@@ -529,7 +575,9 @@ class HRAgent:
         )
         return payload, call
 
-    async def _complete(self, messages: list[dict[str, Any]]) -> Any:
+    async def _complete(
+        self, messages: list[dict[str, Any]], client: Any = None, model: str = ""
+    ) -> Any:
         """One chat completion, retrying when the provider throttles us.
 
         Groq's free tier allows 8,000 tokens per MINUTE, and a single
@@ -544,8 +592,8 @@ class HRAgent:
         delay = 5.0
         for attempt in range(1, RATE_LIMIT_RETRIES + 1):
             try:
-                return await self._client.chat.completions.create(
-                    model=self.model,
+                return await (client or self._client).chat.completions.create(
+                    model=model or self.model,
                     messages=messages,
                     tools=self._tools,
                     tool_choice="auto",
@@ -581,11 +629,17 @@ class HRAgent:
     # -- the loop ----------------------------------------------------------
 
     async def ask(
-        self, question: str, history: Sequence[dict[str, str]] | None = None
+        self,
+        question: str,
+        history: Sequence[dict[str, str]] | None = None,
+        provider: str | None = None,
     ) -> AgentResponse:
         """Answer one question, calling tools as needed."""
         if self._session is None:
             raise AgentError("Agent is not connected; use `async with HRAgent()`.")
+
+        chosen, model = self.resolve_request_provider(provider)
+        client = self._client_for(chosen)
 
         started = time.perf_counter()
         messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -602,7 +656,7 @@ class HRAgent:
         tokens_used = 0
 
         for iterations in range(1, self.max_iterations + 1):
-            completion = await self._complete(messages)
+            completion = await self._complete(messages, client, model)
             usage = getattr(completion, "usage", None)
             if usage is not None:
                 tokens_used += int(getattr(usage, "total_tokens", 0) or 0)
@@ -677,7 +731,7 @@ class HRAgent:
             tool_calls=trace,
             iterations=iterations,
             latency_ms=int((time.perf_counter() - started) * 1000),
-            model=self.model,
+            model=model,
             out_of_corpus=out_of_corpus,
             awaiting_confirmation=awaiting_confirmation,
             unsupported_citations=find_unsupported_citations(answer, deduped),

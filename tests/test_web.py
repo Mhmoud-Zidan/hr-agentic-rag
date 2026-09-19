@@ -18,7 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import web
-from app.agent import AgentResponse, Citation, ToolCall
+from app.agent import AgentError, AgentResponse, Citation, ToolCall
 
 
 class FakeAgent:
@@ -34,9 +34,12 @@ class FakeAgent:
             raise RuntimeError("mcp is down")
         return {"mcp_connected": True, "tool_count": 8, "tools": ["a"] * 8}
 
-    async def ask(self, question, history=None) -> AgentResponse:
+    async def ask(self, question, history=None, provider=None) -> AgentResponse:
         self.asked.append((question, list(history or [])))
         return self.response or AgentResponse(answer="stub answer")
+
+    def available_providers(self) -> list[dict]:
+        return [{"name": "groq", "model": "stub-model", "paid": "free"}]
 
     async def aclose(self) -> None:
         return None
@@ -149,7 +152,7 @@ def test_chat_is_503_when_the_agent_is_unavailable(client):
 
 
 def test_chat_times_out_rather_than_hanging(client, monkeypatch):
-    async def never_returns(question, history=None):
+    async def never_returns(question, history=None, provider=None):
         await asyncio.sleep(10)
 
     monkeypatch.setattr(client.agent, "ask", never_returns)  # type: ignore
@@ -160,7 +163,7 @@ def test_chat_times_out_rather_than_hanging(client, monkeypatch):
 
 
 def test_chat_surfaces_an_unexpected_error_as_500(client, monkeypatch):
-    async def explode(question, history=None):
+    async def explode(question, history=None, provider=None):
         raise ValueError("unexpected")
 
     monkeypatch.setattr(client.agent, "ask", explode)  # type: ignore
@@ -188,10 +191,59 @@ def test_provider_rate_limit_is_429_not_500(client, monkeypatch):
     class RateLimitError(Exception):
         pass
 
-    async def throttled(question, history=None):
+    async def throttled(question, history=None, provider=None):
         raise RateLimitError("Rate limit reached ... tokens per day (TPD)")
 
     monkeypatch.setattr(client.agent, "ask", throttled)  # type: ignore
     response = client.post("/chat", json={"message": "hello"})
     assert response.status_code == 429
     assert "rate limiting" in response.json()["detail"]
+
+
+# --- provider selection ----------------------------------------------------
+
+
+def test_health_lists_configured_providers(client, monkeypatch):
+    monkeypatch.setattr(
+        client.agent,  # type: ignore[attr-defined]
+        "available_providers",
+        lambda: [{"name": "groq", "model": "m", "paid": "free"}],
+        raising=False,
+    )
+    body = client.get("/health").json()
+    assert body["providers"][0]["name"] == "groq"
+
+
+def test_chat_forwards_the_chosen_provider(client):
+    captured = {}
+
+    async def ask(question, history=None, provider=None):
+        captured["provider"] = provider
+        return AgentResponse(answer="ok")
+
+    client.agent.ask = ask  # type: ignore[attr-defined]
+    client.post("/chat", json={"message": "hi", "provider": "deepseek"})
+    assert captured["provider"] == "deepseek"
+
+
+def test_chat_without_a_provider_uses_the_server_default(client):
+    captured = {}
+
+    async def ask(question, history=None, provider=None):
+        captured["provider"] = provider
+        return AgentResponse(answer="ok")
+
+    client.agent.ask = ask  # type: ignore[attr-defined]
+    client.post("/chat", json={"message": "hi"})
+    assert captured["provider"] is None
+
+
+def test_an_unconfigured_provider_is_refused(client):
+    """A caller must not be able to redirect our prompts to a chosen endpoint."""
+    async def ask(question, history=None, provider=None):
+        raise AgentError("Provider 'evil' is not configured on this server.")
+
+    client.agent.ask = ask  # type: ignore[attr-defined]
+    response = client.post("/chat", json={"message": "hi", "provider": "evil"})
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]

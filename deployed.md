@@ -59,6 +59,27 @@ To have CI trigger deploys, add Render's Deploy Hook URL as the GitHub secret
 `RENDER_DEPLOY_HOOK_URL`. Without it the deploy job skips cleanly rather than
 failing the run.
 
+## Choosing a provider from the page
+
+The chat page has a **Model provider** selector, populated from `/health` with
+whatever providers this deployment holds a key for. Each is labelled `free tier`
+or `paid — uses credit`, and the page defaults to a **free** provider so the paid
+key is only spent deliberately. The choice is remembered per browser.
+
+| Provider | Model | Cost | Behaviour |
+|---|---|---|---|
+| groq | openai/gpt-oss-120b | free | 8k tokens/min, 200k/day — throttles to ~30 s/question |
+| openrouter | qwen/qwen3.8-27b:free | free | 50 requests/day, ~67 s/question |
+| deepseek | deepseek-chat | paid | ~2-3 s/question, no practical limit, ~$0.0004/question |
+
+Only providers configured **on the server** are offered or accepted. A request
+naming anything else is refused: a caller must never be able to point this
+server's prompts, or its API quota, at an endpoint of their choosing.
+
+For a recorded demo, use deepseek — a full 30-question evaluation cost $0.013,
+so a demo costs well under a cent, and 3 s answers show the architecture rather
+than a free tier's queue.
+
 ## Known limitations
 
 **Cold start ~20-25 s.** The free plan sleeps after about 15 minutes idle. The
