@@ -1,0 +1,19 @@
+# Render blueprint. Committing this means the service is reproducible rather
+# than a set of settings someone clicked once and cannot recall.
+services:
+  - type: web
+    name: northwind-hr-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    branch: master
+    healthCheckPath: /health
+    envVars:
+      # Set in the Render dashboard, never committed.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: MOCK_TODAY
+        value: "2026-09-17"

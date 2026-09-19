@@ -1,0 +1,26 @@
+# Keep the build context small and never ship secrets or local artefacts.
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+
+# The index is rebuilt inside the image; copying the host one in would ship a
+# stale index AND a Windows-built SQLite file into a Linux container.
+chroma_db/
+storage/
+
+# Secrets. The real key is injected as an environment variable at runtime.
+.env
+.env.*
+!.env.example
+
+tests/
+evaluation/
+*.md
+!README.md
+.DS_Store
+Thumbs.db

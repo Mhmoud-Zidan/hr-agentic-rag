@@ -17,19 +17,32 @@ from __future__ import annotations
 import json
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 __all__ = [
     "DEFAULT_EMBEDDING_MODEL",
     "EMBEDDING_MODEL",
+    "CHROMA_DIR",
+    "CHROMA_COLLECTION",
     "resolve_input_window",
 ]
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 
 #: The embedding model for the whole pipeline: chunk token counting, passage
 #: embedding and query embedding all follow this one string.
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL)
+
+#: Where the built index lives. Writer (scripts/build_index.py) and readers
+#: (the MCP server, the agent) must agree on this: a reader pointed at the wrong
+#: directory does not fail, it silently opens an empty collection and every
+#: search returns nothing. That failure looks like a bad retriever, not a bad
+#: path, which is why it is defined once here rather than defaulted per module.
+CHROMA_DIR = Path(os.environ.get("CHROMA_DIR", REPO_ROOT / "chroma_db"))
+CHROMA_COLLECTION = os.environ.get("CHROMA_COLLECTION", "northwind_policies")
 
 
 # Where a model's real input window is published, most authoritative first.

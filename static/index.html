@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northwind HR Assistant</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1b1f24;
+    --muted: #5b6672;
+    --line: #dfe3e8;
+    --accent: #1f5fa9;
+    --accent-soft: #eaf1fa;
+    --warn-bg: #fdf3e3;
+    --warn-line: #e3b980;
+    --warn-ink: #7a4d06;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171a; --panel: #1c2024; --ink: #e8eaed; --muted: #9aa4b0;
+      --line: #2c3238; --accent: #6ea8e8; --accent-soft: #1f2a36;
+      --warn-bg: #2e2617; --warn-line: #6b5426; --warn-ink: #e0bc74;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 18px 20px; border-bottom: 1px solid var(--line);
+    background: var(--panel); position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { margin: 0; font-size: 17px; }
+  header p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+  #status { float: right; font-size: 12px; color: var(--muted); }
+  main { max-width: 820px; margin: 0 auto; padding: 20px 16px 140px; }
+
+  .msg { margin-bottom: 18px; }
+  .msg .who {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin-bottom: 5px;
+  }
+  .bubble {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px; overflow-wrap: anywhere;
+  }
+  /* Plain-text bubbles (the greeting, "Thinking…", errors) keep their breaks;
+     rendered markdown supplies its own block elements. */
+  .bubble.plain { white-space: pre-wrap; }
+  .bubble > *:first-child { margin-top: 0; }
+  .bubble > *:last-child { margin-bottom: 0; }
+  .bubble p { margin: 0 0 10px; }
+  .bubble ul, .bubble ol { margin: 0 0 10px; padding-left: 22px; }
+  .bubble li { margin-bottom: 4px; }
+  .bubble h3, .bubble h4, .bubble h5 { margin: 14px 0 7px; font-size: 14px; }
+  .bubble code {
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 4px;
+    font-size: 12.5px;
+  }
+  .bubble table {
+    border-collapse: collapse; width: 100%; margin: 4px 0 12px;
+    font-size: 13.5px; display: block; overflow-x: auto;
+  }
+  .bubble th, .bubble td {
+    border: 1px solid var(--line); padding: 6px 9px;
+    text-align: left; vertical-align: top;
+  }
+  .bubble th { background: var(--accent-soft); font-weight: 600; }
+  .msg.user .bubble { background: var(--accent-soft); border-color: transparent; }
+
+  details { margin-top: 8px; }
+  details summary {
+    cursor: pointer; font-size: 12.5px; color: var(--muted);
+    padding: 5px 0; user-select: none;
+  }
+  .card {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+    padding: 9px 11px; margin-top: 7px; font-size: 13px;
+  }
+  .card .label { font-weight: 600; color: var(--accent); }
+  .card .snippet { color: var(--muted); margin-top: 4px; font-size: 12.5px; }
+  .trace-row {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; padding: 5px 0; border-bottom: 1px dashed var(--line);
+  }
+  .trace-row:last-child { border-bottom: 0; }
+  .trace-row .tool { color: var(--accent); font-weight: 600; }
+  .trace-row .fail { color: #b3261e; font-weight: 600; }
+  .flag {
+    background: var(--warn-bg); border: 1px solid var(--warn-line);
+    color: var(--warn-ink); border-radius: 8px; padding: 9px 11px;
+    margin-top: 9px; font-size: 13px;
+  }
+
+  form {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel);
+    border-top: 1px solid var(--line); padding: 12px 16px;
+  }
+  .row { max-width: 820px; margin: 0 auto; display: flex; gap: 9px; }
+  textarea {
+    flex: 1; resize: none; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font: inherit; background: var(--bg); color: var(--ink);
+    min-height: 46px; max-height: 150px;
+  }
+  button {
+    border: 0; border-radius: 8px; background: var(--accent); color: #fff;
+    padding: 0 20px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .examples { max-width: 820px; margin: 9px auto 0; display: flex;
+              gap: 7px; flex-wrap: wrap; }
+  .examples button {
+    background: transparent; color: var(--accent); border: 1px solid var(--line);
+    padding: 5px 10px; font-size: 12.5px; font-weight: 500; border-radius: 20px;
+  }
+  .hint { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <span id="status">checking…</span>
+  <h1>Northwind HR Assistant</h1>
+  <p>Policy answers grounded in the HR corpus, with citations and a tool trace.</p>
+</header>
+
+<main id="log">
+  <div class="msg assistant">
+    <div class="who">Assistant</div>
+    <div class="bubble plain">Ask me about Northwind HR policy — leave, remote work, benefits, expenses, equipment or conduct.
+
+For anything about your own entitlements, include your employee ID (for example EMP-101), since balances and eligibility depend on who you are.</div>
+  </div>
+</main>
+
+<form id="form">
+  <div class="row">
+    <textarea id="input" placeholder="Ask an HR question…" autofocus></textarea>
+    <button id="send" type="submit">Send</button>
+  </div>
+  <div class="examples" id="examples"></div>
+</form>
+
+<script>
+const log = document.getElementById('log');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const send = document.getElementById('send');
+const statusEl = document.getElementById('status');
+
+// Replayed to the server so follow-ups ("yes, go ahead") keep their context.
+const history = [];
+
+const EXAMPLES = [
+  "I'm EMP-101. Can I work from Spain for six weeks?",
+  "I'm EMP-102, can I take 3 days off next week?",
+  "I'm EMP-103 — am I eligible for health insurance?",
+  "Do I get stock options?"
+];
+
+for (const text of EXAMPLES) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = text.length > 46 ? text.slice(0, 44) + '…' : text;
+  b.title = text;
+  b.onclick = () => { input.value = text; input.focus(); };
+  document.getElementById('examples').appendChild(b);
+}
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+function addMessage(role, text) {
+  const wrap = el('div', 'msg ' + role);
+  wrap.appendChild(el('div', 'who', role === 'user' ? 'You' : 'Assistant'));
+  const bubble = el('div', 'bubble plain', text);
+  wrap.appendChild(bubble);
+  log.appendChild(wrap);
+  window.scrollTo(0, document.body.scrollHeight);
+  return wrap;
+}
+
+// --- minimal markdown -----------------------------------------------------
+// The model answers in markdown: bold, bullet lists and "requirement vs your
+// situation" tables, which are genuinely the clearest form for a policy
+// decision. Rendered as plain text they arrive as a wall of pipes and
+// asterisks.
+//
+// Everything is HTML-ESCAPED FIRST and markup applied to the escaped text, so
+// nothing the model emits can inject an element. That ordering is the whole
+// safety argument: escaping afterwards would neutralise the tags this function
+// adds, and escaping never would make model output executable.
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function inlineMd(s) {
+  return escapeHtml(s)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function isTableRow(line) { return /^\s*\|.*\|\s*$/.test(line); }
+function isDivider(line) { return /^\s*\|[\s:|-]+\|\s*$/.test(line); }
+function cells(line) {
+  return line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+}
+
+function renderMarkdown(text) {
+  const lines = (text || '').split('\n');
+  let html = '';
+  let list = null;           // 'ul' | 'ol' | null
+  let paragraph = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      html += '<p>' + paragraph.map(inlineMd).join('<br>') + '</p>';
+      paragraph = [];
+    }
+  };
+  const closeList = () => { if (list) { html += `</${list}>`; list = null; } };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (isTableRow(line)) {
+      flushParagraph(); closeList();
+      const block = [];
+      while (i < lines.length && isTableRow(lines[i])) block.push(lines[i++]);
+      i--;
+      const header = block.shift();
+      if (block.length && isDivider(block[0])) block.shift();
+      html += '<table><thead><tr>' +
+              cells(header).map(c => `<th>${inlineMd(c)}</th>`).join('') +
+              '</tr></thead><tbody>' +
+              block.map(r => '<tr>' +
+                cells(r).map(c => `<td>${inlineMd(c)}</td>`).join('') +
+                '</tr>').join('') +
+              '</tbody></table>';
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.*)$/);
+    if (heading) {
+      flushParagraph(); closeList();
+      const level = Math.min(heading[1].length + 2, 6);
+      html += `<h${level}>${inlineMd(heading[2])}</h${level}>`;
+      continue;
+    }
+
+    const bullet = line.match(/^\s*[-*+]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (bullet || numbered) {
+      flushParagraph();
+      const want = bullet ? 'ul' : 'ol';
+      if (list !== want) { closeList(); html += `<${want}>`; list = want; }
+      html += `<li>${inlineMd((bullet || numbered)[1])}</li>`;
+      continue;
+    }
+
+    if (!line.trim()) { flushParagraph(); closeList(); continue; }
+
+    closeList();
+    paragraph.push(line);
+  }
+
+  flushParagraph(); closeList();
+  return html;
+}
+
+function addDetails(parent, summaryText, build) {
+  const d = el('details');
+  d.appendChild(el('summary', null, summaryText));
+  build(d);
+  parent.appendChild(d);
+}
+
+function render(wrap, data) {
+  if (data.unsupported_citations && data.unsupported_citations.length) {
+    // Shown, not hidden: a citation the retriever never returned is exactly
+    // the failure a reader cannot catch by eye.
+    wrap.appendChild(el('div', 'flag',
+      'Unverified citation(s): ' + data.unsupported_citations.join(', ') +
+      ' — referenced in the answer but not among the retrieved passages. ' +
+      'Check these against the source document before relying on them.'));
+  }
+
+  if (data.citations && data.citations.length) {
+    addDetails(wrap, `Sources (${data.citations.length})`, d => {
+      for (const c of data.citations) {
+        const card = el('div', 'card');
+        const head = el('div');
+        head.appendChild(el('span', 'label', c.label));
+        head.appendChild(document.createTextNode(
+          '  ' + (c.section_heading || '') +
+          '  · ' + c.similarity.toFixed(3)));
+        card.appendChild(head);
+        card.appendChild(el('div', 'snippet', c.snippet));
+        d.appendChild(card);
+      }
+    });
+  }
+
+  if (data.trace && data.trace.length) {
+    const label = `Tool calls (${data.trace.length}) · ` +
+                  `${data.iterations} iteration(s) · ${data.latency_ms} ms`;
+    addDetails(wrap, label, d => {
+      const box = el('div', 'card');
+      for (const t of data.trace) {
+        const row = el('div', 'trace-row');
+        row.appendChild(el('span', 'tool', t.tool));
+        row.appendChild(document.createTextNode(
+          '(' + JSON.stringify(t.arguments) + ') → ' + t.summary +
+          '  [' + t.duration_ms + ' ms]'));
+        if (!t.ok) row.appendChild(el('span', 'fail', '  FAILED'));
+        box.appendChild(row);
+      }
+      d.appendChild(box);
+    });
+  }
+}
+
+async function refreshHealth() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    statusEl.textContent = r.ok
+      ? `${d.tool_count} tools · ${d.model}`
+      : `degraded: ${d.error || 'unavailable'}`;
+  } catch {
+    statusEl.textContent = 'offline';
+  }
+}
+refreshHealth();
+
+form.onsubmit = async (event) => {
+  event.preventDefault();
+  const message = input.value.trim();
+  if (!message) return;
+
+  addMessage('user', message);
+  input.value = '';
+  send.disabled = true;
+
+  const wrap = addMessage('assistant', 'Thinking…');
+  const bubble = wrap.querySelector('.bubble');
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      bubble.textContent = 'Error: ' + (data.detail || res.statusText);
+      bubble.classList.add('hint');
+    } else {
+      bubble.classList.remove('plain');
+      bubble.innerHTML = renderMarkdown(data.answer || '(no answer returned)');
+      render(wrap, data);
+      history.push({ role: 'user', content: message });
+      history.push({ role: 'assistant', content: data.answer || '' });
+      while (history.length > 20) history.shift();
+    }
+  } catch (err) {
+    bubble.textContent = 'Network error: ' + err.message;
+  } finally {
+    send.disabled = false;
+    input.focus();
+    window.scrollTo(0, document.body.scrollHeight);
+  }
+};
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+});
+</script>
+</body>
+</html>

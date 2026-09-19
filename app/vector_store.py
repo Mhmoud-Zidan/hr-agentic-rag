@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Iterable, Protocol, Sequence, runtime_checkable
 
 from app.chunker import Chunk
+from app.config import CHROMA_COLLECTION, CHROMA_DIR
 from app.embeddings import DEFAULT_EMBEDDING_MODEL, Embedder, get_embedder
 
 __all__ = [
@@ -36,8 +37,9 @@ __all__ = [
     "VectorStore",
 ]
 
-DEFAULT_PERSIST_DIR = Path("storage") / "chroma"
-DEFAULT_COLLECTION = "northwind_policies"
+# Both from app.config so the writer and every reader resolve to one path.
+DEFAULT_PERSIST_DIR = CHROMA_DIR
+DEFAULT_COLLECTION = CHROMA_COLLECTION
 
 # Chroma needs this at creation time; changing it later requires a rebuild.
 COSINE_SPACE = {"hnsw:space": "cosine"}

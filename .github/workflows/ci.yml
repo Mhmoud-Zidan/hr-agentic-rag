@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # 3.12 only, matching the Dockerfile. Testing on the newest CPython would
+    # prove nothing about the artefact that actually ships, and would fail on
+    # the compiled wheels (chromadb / onnxruntime / fastembed) that lag it.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Import check
+        # Catches a broken module before the suite spends minutes finding out.
+        run: |
+          python -c "import app.parsers, app.chunker, app.embeddings"
+          python -c "import app.vector_store, app.mock_data, app.config"
+          python -c "import app.agent, app.web, mcp_server.server"
+
+      - name: Corpus validation
+        run: python scripts/validate_corpus.py
+
+      - name: Eval-set leakage gate
+        # Fails the build if a mock-data value has been written into policy
+        # prose, which would silently plant gold answers in the corpus.
+        run: python scripts/check_no_leak.py
+
+      - name: Tests
+        # No GROQ_API_KEY is set: the suite must pass without one. Anything
+        # needing a live model belongs in the evaluation harness, not here.
+        run: python -m pytest -q
+
+      - name: MCP tool discovery
+        # The rubric requirement, asserted independently of pytest so a failure
+        # here is legible in the job log rather than buried in test output.
+        run: |
+          python - <<'PY'
+          import asyncio, sys
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
+          async def main():
+              params = StdioServerParameters(
+                  command=sys.executable, args=["-m", "mcp_server.server"], cwd="."
+              )
+              async with stdio_client(params) as (read, write):
+                  async with ClientSession(read, write) as session:
+                      await session.initialize()
+                      tools = (await session.list_tools()).tools
+                      for tool in tools:
+                          print(f"  {tool.name}")
+                      assert len(tools) >= 5, f"only {len(tools)} tool(s) discovered"
+                      print(f"OK: {len(tools)} tools discovered over stdio")
+
+          asyncio.run(main())
+          PY
+
+  docker:
+    # Proves the deployable artefact builds, including the corpus index step.
+    # Runs in parallel with tests; deploy waits for both.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: northwind-hr:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Container starts and reports health
+        # A build that succeeds but cannot boot is not a passing build. No API
+        # key is injected, so /health is expected to answer 503 "degraded" --
+        # what is under test is that the server responds at all.
+        run: |
+          docker run -d --name hr -p 8000:8000 northwind-hr:ci
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' \
+                   http://localhost:8000/health || true)
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then
+              echo "health responded with $code"; cat /tmp/health.json; exit 0
+            fi
+            sleep 2
+          done
+          echo "container never became reachable"; docker logs hr; exit 1
+
+  deploy:
+    # Deploy only if both gates are green -- the "deploy only if green" the
+    # brief asks for. Requires RENDER_DEPLOY_HOOK_URL to be set as a repository
+    # secret; without it the step is skipped rather than failing the run.
+    needs: [test, docker]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL not set; skipping deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" && echo "deploy triggered"
