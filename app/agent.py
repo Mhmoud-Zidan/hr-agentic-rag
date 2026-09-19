@@ -35,6 +35,7 @@ generation rather than gating an action.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -119,6 +120,90 @@ STYLE
 
 class AgentError(RuntimeError):
     """Configuration or transport failure, as opposed to a bad answer."""
+
+
+# ---------------------------------------------------------------------------
+# providers
+# ---------------------------------------------------------------------------
+# Every provider here speaks the OpenAI chat-completions dialect, which is what
+# makes swapping one for another a configuration change rather than a rewrite:
+# the tool schemas, the `tool_calls` reply and the `tool` result messages are
+# identical across all of them. A provider with a genuinely different shape
+# (Anthropic's or Gemini's native APIs) would need an adapter, not an entry.
+#
+# This exists because the binding constraint on this project turned out to be
+# the provider's free-tier quota, not the model. Being able to point the same
+# agent at a second provider for evaluation runs is worth more than any
+# individual model choice.
+
+
+@dataclass(frozen=True)
+class Provider:
+    name: str
+    base_url: str
+    key_env: str
+    default_model: str
+    headers: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def api_key(self) -> str | None:
+        return os.environ.get(self.key_env)
+
+
+PROVIDERS: dict[str, Provider] = {
+    "groq": Provider(
+        name="groq",
+        base_url="https://api.groq.com/openai/v1",
+        key_env="GROQ_API_KEY",
+        default_model="openai/gpt-oss-120b",
+    ),
+    "openrouter": Provider(
+        name="openrouter",
+        base_url="https://openrouter.ai/api/v1",
+        key_env="OPENROUTER_API_KEY",
+        # Free tier and supports tool calling -- OpenRouter lists many free
+        # models that do NOT, and one of those fails only at the first tool
+        # call, not at connect time.
+        default_model="qwen/qwen3.8-27b:free",
+        headers={
+            "HTTP-Referer": "https://github.com/Mhmoud-Zidan/hr-agentic-rag",
+            "X-Title": "Northwind HR Agent",
+        },
+    ),
+    "openai": Provider(
+        name="openai",
+        base_url="https://api.openai.com/v1",
+        key_env="OPENAI_API_KEY",
+        default_model="gpt-4.1-mini",
+    ),
+}
+
+#: Which provider to use. Overridden per run with --provider in the evaluation
+#: harness, so a rate-limited provider does not block an evaluation.
+DEFAULT_PROVIDER = os.environ.get("LLM_PROVIDER", "groq")
+
+
+def resolve_provider(name: str | None = None) -> Provider:
+    """Look up a provider, or build one from LLM_BASE_URL for anything else."""
+    name = (name or DEFAULT_PROVIDER).lower()
+    if name in PROVIDERS:
+        return PROVIDERS[name]
+
+    base_url = os.environ.get("LLM_BASE_URL")
+    if not base_url:
+        known = ", ".join(sorted(PROVIDERS))
+        raise AgentError(
+            f"Unknown provider {name!r}. Known: {known}. For any other "
+            f"OpenAI-compatible endpoint, set LLM_BASE_URL and LLM_API_KEY."
+        )
+    return Provider(
+        name=name,
+        base_url=base_url,
+        key_env="LLM_API_KEY",
+        default_model=os.environ.get("LLM_MODEL", ""),
+    )
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -301,13 +386,20 @@ class HRAgent:
     search, the embedding model load) on every question.
     """
 
-    def __init__(self, model: str = DEFAULT_MODEL, max_iterations: int = MAX_ITERATIONS):
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        max_iterations: int = MAX_ITERATIONS,
+        provider: str | None = None,
+    ):
         self.model = model
         self.max_iterations = max_iterations
+        self.provider_name = provider or DEFAULT_PROVIDER
+        self.provider: Provider | None = None
         self._session: Any = None
         self._stack: AsyncExitStack | None = None
         self._tools: list[dict[str, Any]] = []
-        self._groq: Any = None
+        self._client: Any = None
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -319,16 +411,27 @@ class HRAgent:
         await self.aclose()
 
     async def connect(self) -> None:
-        from groq import AsyncGroq
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
+        from openai import AsyncOpenAI
 
-        if not os.environ.get("GROQ_API_KEY"):
+        provider = resolve_provider(self.provider_name)
+        if not provider.api_key:
             raise AgentError(
-                "GROQ_API_KEY is not set. Put it in .env at the repository root."
+                f"No API key for provider '{provider.name}'. Set "
+                f"{provider.key_env} in .env at the repository root."
             )
+        self.provider = provider
+        if self.model == DEFAULT_MODEL and provider.default_model:
+            # The caller did not ask for a specific model, and Groq's model id
+            # means nothing to OpenRouter. Use the provider's own default.
+            self.model = provider.default_model
 
-        self._groq = AsyncGroq()
+        self._client = AsyncOpenAI(
+            api_key=provider.api_key,
+            base_url=provider.base_url,
+            default_headers=provider.headers or None,
+        )
         self._stack = AsyncExitStack()
 
         params = StdioServerParameters(
@@ -348,7 +451,7 @@ class HRAgent:
         self._session = None
 
     async def _load_tool_schemas(self) -> list[dict[str, Any]]:
-        """Translate the live MCP tool list into Groq function-calling format."""
+        """Translate the live MCP tool list into function-calling format."""
         listing = await self._session.list_tools()
         return [
             {
@@ -356,7 +459,7 @@ class HRAgent:
                 "function": {
                     "name": tool.name,
                     "description": tool.description or "",
-                    "parameters": tool.input_schema,
+                    "parameters": simplify_schema(tool.input_schema),
                 },
             }
             for tool in listing.tools
@@ -377,7 +480,8 @@ class HRAgent:
             status["mcp_connected"] = False
             status["error"] = str(exc)
         status["model"] = self.model
-        status["groq_key_present"] = bool(os.environ.get("GROQ_API_KEY"))
+        status["provider"] = self.provider.name if self.provider else self.provider_name
+        status["api_key_present"] = bool(self.provider and self.provider.api_key)
         return status
 
     # -- dispatch ----------------------------------------------------------
@@ -415,12 +519,12 @@ class HRAgent:
         rather than the agent. The provider tells us how long to wait; honour it
         rather than guessing.
         """
-        from groq import RateLimitError
+        from openai import RateLimitError
 
         delay = 5.0
         for attempt in range(1, RATE_LIMIT_RETRIES + 1):
             try:
-                return await self._groq.chat.completions.create(
+                return await self._client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     tools=self._tools,
@@ -602,6 +706,52 @@ def find_unsupported_citations(
     return unsupported
 
 
+def simplify_schema(schema: Any) -> Any:
+    """Collapse nullable unions so every provider can compile the schema.
+
+    A Python parameter typed `str | None` becomes
+    `{"anyOf": [{"type": "string"}, {"type": "null"}]}`. Groq accepts that.
+    At least one OpenRouter backend rejects the whole request with
+
+        grammar rejected: parameter "doc_id": more than one JSON reading
+        of the same emitted value
+
+    because a constrained-decoding grammar cannot tell which branch an emitted
+    token belongs to. The parameter is optional either way -- it is absent from
+    `required` -- so the null branch carries no information the model needs, and
+    dropping it loses nothing while making the tool portable.
+
+    This is done HERE, at the boundary where MCP schemas are translated for the
+    LLM, rather than by weakening the type annotations in the server. The server
+    is the contract; this is one client's dialect.
+    """
+    if isinstance(schema, list):
+        return [simplify_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+
+    for union_key in ("anyOf", "oneOf"):
+        branches = schema.get(union_key)
+        if isinstance(branches, list):
+            concrete = [b for b in branches if _schema_type(b) != "null"]
+            if len(concrete) == 1 and len(concrete) < len(branches):
+                merged = {**{k: v for k, v in schema.items() if k != union_key},
+                          **concrete[0]}
+                return simplify_schema(merged)
+
+    # "type": ["string", "null"] is the other spelling of the same thing.
+    kind = schema.get("type")
+    if isinstance(kind, list):
+        concrete = [k for k in kind if k != "null"]
+        schema = {**schema, "type": concrete[0] if len(concrete) == 1 else concrete}
+
+    return {key: simplify_schema(value) for key, value in schema.items()}
+
+
+def _schema_type(branch: Any) -> Any:
+    return branch.get("type") if isinstance(branch, dict) else None
+
+
 def _retry_after(exc: Exception) -> float | None:
     """Seconds the provider asked us to wait, from the header or the message."""
     response = getattr(exc, "response", None)
@@ -659,20 +809,26 @@ def _dedupe(citations: list[Citation]) -> list[Citation]:
     return sorted(best.values(), key=lambda c: c.similarity, reverse=True)
 
 
-async def ask_once(question: str, model: str = DEFAULT_MODEL) -> AgentResponse:
+async def ask_once(
+    question: str, model: str = DEFAULT_MODEL, provider: str | None = None
+) -> AgentResponse:
     """Convenience for scripts and tests: connect, ask one question, close."""
-    async with HRAgent(model=model) as agent:
+    async with HRAgent(model=model, provider=provider) as agent:
         return await agent.ask(question)
 
 
 def main() -> None:
-    """CLI: python -m app.agent "question"."""
-    if len(sys.argv) < 2:
-        print('usage: python -m app.agent "your question"', file=sys.stderr)
-        raise SystemExit(2)
+    """CLI: python -m app.agent [--provider NAME] [--model ID] "question"."""
+    parser = argparse.ArgumentParser(prog="python -m app.agent")
+    parser.add_argument("--provider", default=None, help=f"one of {sorted(PROVIDERS)}")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("question", nargs="+")
+    args = parser.parse_args()
 
-    response = asyncio.run(ask_once(" ".join(sys.argv[1:])))
-
+    response = asyncio.run(
+        ask_once(" ".join(args.question), model=args.model, provider=args.provider)
+    )
+    print(f"[{response.model}]\n")
     print(response.answer)
     if response.citations:
         print("\nSources:")

@@ -181,3 +181,84 @@ def test_daily_quota_wait_exceeds_the_cap():
 
     wait = _retry_after(Exception("Please try again in 2h15m51.6s."))
     assert wait > MAX_RETRY_WAIT_SECONDS
+
+
+# --- provider portability --------------------------------------------------
+
+
+def test_nullable_union_is_collapsed():
+    """`str | None` compiles to anyOf[string, null], which some providers reject.
+
+    OpenRouter's grammar engine refused the whole request with "more than one
+    JSON reading of the same emitted value". The parameter is optional via
+    `required` either way, so the null branch carries nothing.
+    """
+    from app.agent import simplify_schema
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "doc_id": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        },
+        "required": [],
+    }
+    assert simplify_schema(schema)["properties"]["doc_id"] == {"type": "string"}
+
+
+def test_nullable_type_list_is_collapsed():
+    from app.agent import simplify_schema
+
+    schema = {"type": "object", "properties": {"x": {"type": ["string", "null"]}}}
+    assert simplify_schema(schema)["properties"]["x"]["type"] == "string"
+
+
+def test_a_real_union_is_left_alone():
+    """Only NULLABLE unions collapse; a genuine string-or-number must survive."""
+    from app.agent import simplify_schema
+
+    branches = [{"type": "string"}, {"type": "number"}]
+    schema = {"type": "object", "properties": {"x": {"anyOf": branches}}}
+    assert simplify_schema(schema)["properties"]["x"]["anyOf"] == branches
+
+
+def test_simplify_preserves_descriptions_and_required():
+    from app.agent import simplify_schema
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "what to search for"},
+            "doc_id": {"anyOf": [{"type": "string"}, {"type": "null"}],
+                       "description": "optional filter"},
+        },
+        "required": ["query"],
+    }
+    out = simplify_schema(schema)
+    assert out["required"] == ["query"]
+    assert out["properties"]["query"]["description"] == "what to search for"
+    assert out["properties"]["doc_id"]["description"] == "optional filter"
+
+
+def test_known_providers_are_registered():
+    from app.agent import PROVIDERS, resolve_provider
+
+    assert {"groq", "openrouter", "openai"} <= set(PROVIDERS)
+    assert resolve_provider("openrouter").base_url.startswith("https://openrouter.ai")
+
+
+def test_unknown_provider_without_base_url_is_an_error(monkeypatch):
+    from app.agent import AgentError, resolve_provider
+
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    with pytest.raises(AgentError, match="Unknown provider"):
+        resolve_provider("not-a-provider")
+
+
+def test_any_openai_compatible_endpoint_works_via_env(monkeypatch):
+    from app.agent import resolve_provider
+
+    monkeypatch.setenv("LLM_BASE_URL", "https://example.test/v1")
+    monkeypatch.setenv("LLM_MODEL", "some-model")
+    provider = resolve_provider("custom")
+    assert provider.base_url == "https://example.test/v1"
+    assert provider.default_model == "some-model"

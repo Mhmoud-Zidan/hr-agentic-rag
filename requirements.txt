@@ -23,7 +23,10 @@ lxml==6.1.3
 
 # --- agent, MCP, LLM ---
 mcp==2.2.0
-groq==1.7.0
+# The OpenAI SDK is the client for EVERY provider here, not just OpenAI: Groq,
+# OpenRouter and others all speak the same chat-completions dialect, so one
+# client with a different base_url covers all of them. See app/agent.py.
+openai==3.16.2
 
 # --- web application ---
 fastapi==0.141.1

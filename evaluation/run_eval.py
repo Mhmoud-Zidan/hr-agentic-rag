@@ -243,11 +243,12 @@ async def run_suite(
     tools_enabled: bool = True,
     top_k: int | None = None,
     label: str = "default",
+    provider: str | None = None,
 ) -> list[Result]:
     """Run every question once and grade it."""
     results: list[Result] = []
 
-    async with HRAgent(model=model) as agent:
+    async with HRAgent(model=model, provider=provider) as agent:
         if not tools_enabled:
             # The ablation: same model, same prompt, no tools. Whatever it
             # answers now comes from pre-training, which is the point.
@@ -409,6 +410,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--questions", type=Path, default=QUESTIONS_PATH)
     parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="groq, openrouter, openai. Lets a rate-limited provider be "
+             "swapped out without blocking an evaluation.",
+    )
     parser.add_argument("--category", help="run one category only")
     parser.add_argument("--limit", type=int, help="first N questions only")
     parser.add_argument(
@@ -439,7 +446,7 @@ def main() -> int:
         for label, enabled in (("tools ON", True), ("tools OFF", False)):
             print(f"--- {label} ---")
             results = asyncio.run(
-                run_suite(specs, args.model, tools_enabled=enabled, label=label)
+                run_suite(specs, args.model, tools_enabled=enabled, label=label, provider=args.provider)
             )
             summary = summarise(results, label)
             print_summary(summary)
@@ -451,7 +458,7 @@ def main() -> int:
             label = f"top_k={k}"
             print(f"--- {label} ---")
             results = asyncio.run(
-                run_suite(specs, args.model, top_k=k, label=label)
+                run_suite(specs, args.model, top_k=k, label=label, provider=args.provider)
             )
             summary = summarise(results, label)
             print_summary(summary)
@@ -459,7 +466,9 @@ def main() -> int:
         _print_ablation_delta(runs)
 
     else:
-        results = asyncio.run(run_suite(specs, args.model, label="baseline"))
+        results = asyncio.run(
+            run_suite(specs, args.model, label="baseline", provider=args.provider)
+        )
         summary = summarise(results, "baseline")
         print_summary(summary)
         runs.append((summary, results))
