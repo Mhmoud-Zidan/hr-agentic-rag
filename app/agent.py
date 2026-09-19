@@ -62,6 +62,15 @@ DEFAULT_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 #: two policy lookups -> draft -> ticket) with headroom.
 MAX_ITERATIONS = 6
 
+#: How many times to wait out a provider rate limit before giving up. The free
+#: tier throttles on tokens per minute, so a throttle is an ordinary event to be
+#: waited out, not an error to be reported.
+RATE_LIMIT_RETRIES = 5
+
+#: Longest we will wait out a throttle. Above this it is not a throttle, it is
+#: an exhausted quota, and waiting is the wrong response.
+MAX_RETRY_WAIT_SECONDS = 120.0
+
 SERVER_MODULE = "mcp_server.server"
 
 SYSTEM_PROMPT = """\
@@ -172,6 +181,7 @@ class AgentResponse:
     out_of_corpus: bool = False
     awaiting_confirmation: bool = False
     unsupported_citations: list[str] = field(default_factory=list)
+    tokens_used: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -184,6 +194,7 @@ class AgentResponse:
             "out_of_corpus": self.out_of_corpus,
             "awaiting_confirmation": self.awaiting_confirmation,
             "unsupported_citations": self.unsupported_citations,
+            "tokens_used": self.tokens_used,
         }
 
 
@@ -394,6 +405,55 @@ class HRAgent:
         )
         return payload, call
 
+    async def _complete(self, messages: list[dict[str, Any]]) -> Any:
+        """One chat completion, retrying when the provider throttles us.
+
+        Groq's free tier allows 8,000 tokens per MINUTE, and a single
+        tool-augmented turn can approach that on its own. Without a retry a
+        throttle surfaces as an exception, and in an evaluation run that becomes
+        a recorded FAILURE -- so the metrics would be measuring the rate limit
+        rather than the agent. The provider tells us how long to wait; honour it
+        rather than guessing.
+        """
+        from groq import RateLimitError
+
+        delay = 5.0
+        for attempt in range(1, RATE_LIMIT_RETRIES + 1):
+            try:
+                return await self._groq.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=self._tools,
+                    tool_choice="auto",
+                    temperature=0.1,  # policy answers should be reproducible
+                    # 900, not 1400. The model will fill whatever budget it is
+                    # given with longer tables; 900 is ample for a policy
+                    # decision with citations, and an oversized budget is not
+                    # merely wasteful here -- it pushes the request over the
+                    # per-minute limit, and the wait then looks like slow
+                    # generation.
+                    max_tokens=900,
+                )
+            except RateLimitError as exc:
+                if attempt == RATE_LIMIT_RETRIES:
+                    raise
+                wait = _retry_after(exc) or delay
+                # A per-minute throttle is worth waiting out. A daily-quota
+                # exhaustion is not: Groq answers that with a retry-after of
+                # hours, and an unbounded sleep here blocked a single question
+                # for 2.26 hours before succeeding. Fail loudly instead, so the
+                # caller learns the budget is gone rather than appearing to hang.
+                if wait > MAX_RETRY_WAIT_SECONDS:
+                    raise AgentError(
+                        f"Provider quota exhausted; it asks to retry in "
+                        f"{wait / 60:.0f} minutes. This is the daily token "
+                        f"limit, not a transient throttle -- wait for the reset "
+                        f"or switch GROQ_MODEL."
+                    ) from exc
+                await asyncio.sleep(wait)
+                delay = min(delay * 2, MAX_RETRY_WAIT_SECONDS)
+        raise AgentError("unreachable")
+
     # -- the loop ----------------------------------------------------------
 
     async def ask(
@@ -415,16 +475,13 @@ class HRAgent:
         awaiting_confirmation = False
         answer = ""
         iterations = 0
+        tokens_used = 0
 
         for iterations in range(1, self.max_iterations + 1):
-            completion = await self._groq.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=self._tools,
-                tool_choice="auto",
-                temperature=0.1,  # policy answers should be reproducible
-                max_tokens=1400,
-            )
+            completion = await self._complete(messages)
+            usage = getattr(completion, "usage", None)
+            if usage is not None:
+                tokens_used += int(getattr(usage, "total_tokens", 0) or 0)
             message = completion.choices[0].message
             tool_calls = message.tool_calls or []
 
@@ -473,7 +530,11 @@ class HRAgent:
                         "role": "tool",
                         "tool_call_id": tc.id,
                         "name": tc.function.name,
-                        "content": json.dumps(payload, ensure_ascii=False)[:12000],
+                        # Tool results are re-sent on every subsequent
+                        # iteration, so an oversized payload is paid for
+                        # repeatedly. 6000 chars still carries five full policy
+                        # passages.
+                        "content": json.dumps(payload, ensure_ascii=False)[:6000],
                     }
                 )
         else:
@@ -496,6 +557,7 @@ class HRAgent:
             out_of_corpus=out_of_corpus,
             awaiting_confirmation=awaiting_confirmation,
             unsupported_citations=find_unsupported_citations(answer, deduped),
+            tokens_used=tokens_used,
         )
 
 
@@ -538,6 +600,33 @@ def find_unsupported_citations(
         if label not in unsupported:
             unsupported.append(label)
     return unsupported
+
+
+def _retry_after(exc: Exception) -> float | None:
+    """Seconds the provider asked us to wait, from the header or the message."""
+    response = getattr(exc, "response", None)
+    header = getattr(response, "headers", {}) or {}
+    for key in ("retry-after", "x-ratelimit-reset-tokens"):
+        raw = header.get(key)
+        if not raw:
+            continue
+        match = re.fullmatch(
+            r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s?", str(raw).strip()
+        )
+        if match:
+            hours = float(match.group(1) or 0)
+            minutes = float(match.group(2) or 0)
+            return hours * 3600 + minutes * 60 + float(match.group(3))
+    # "Please try again in 2h15m51.6s" -- the hours component is why an
+    # hours-only pattern silently under-read the wait.
+    match = re.search(
+        r"try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", str(exc)
+    )
+    if not match:
+        return None
+    hours = float(match.group(1) or 0)
+    minutes = float(match.group(2) or 0)
+    return hours * 3600 + minutes * 60 + float(match.group(3))
 
 
 def _unwrap(result: Any) -> Any:

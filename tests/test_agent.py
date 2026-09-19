@@ -153,3 +153,31 @@ def test_unwrap_falls_back_to_json_in_text_blocks():
 def test_unwrap_survives_non_json_text():
     """A tool that returns prose must not crash the turn."""
     assert _unwrap(_Result(text="plain words"))["text"] == "plain words"
+
+
+# --- rate-limit handling ---------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Please try again in 12.8s.", 12.8),
+        ("Please try again in 1m30s.", 90.0),
+        # The case that caused a single question to block for 2.26 hours: an
+        # hours-only pattern under-read this, and an uncapped sleep honoured it.
+        ("Please try again in 2h15m51.6s.", 8151.6),
+        ("no duration here", None),
+    ],
+)
+def test_retry_after_parses_every_duration_shape(text, expected):
+    from app.agent import _retry_after
+
+    assert _retry_after(Exception(text)) == expected
+
+
+def test_daily_quota_wait_exceeds_the_cap():
+    """A wait this long is an exhausted quota, not a throttle to sleep through."""
+    from app.agent import MAX_RETRY_WAIT_SECONDS, _retry_after
+
+    wait = _retry_after(Exception("Please try again in 2h15m51.6s."))
+    assert wait > MAX_RETRY_WAIT_SECONDS

@@ -176,3 +176,22 @@ def test_index_serves_the_chat_page(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Northwind HR Assistant" in response.text
+
+
+def test_provider_rate_limit_is_429_not_500(client, monkeypatch):
+    """A provider quota failure is not a bug in this app.
+
+    Reported as 500 it sends the caller hunting for a server fault; 429 states
+    what is true and lets a client back off.
+    """
+
+    class RateLimitError(Exception):
+        pass
+
+    async def throttled(question, history=None):
+        raise RateLimitError("Rate limit reached ... tokens per day (TPD)")
+
+    monkeypatch.setattr(client.agent, "ask", throttled)  # type: ignore
+    response = client.post("/chat", json={"message": "hello"})
+    assert response.status_code == 429
+    assert "rate limiting" in response.json()["detail"]

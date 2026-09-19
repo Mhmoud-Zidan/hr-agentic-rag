@@ -174,6 +174,18 @@ async def chat(request: ChatRequest) -> JSONResponse:
     except AgentError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
+        # A provider rate limit is not a server fault, and reporting it as 500
+        # sends the caller looking for a bug in this app. 429 says what is
+        # actually true -- too many tokens, try later -- and lets a client back
+        # off instead of retrying immediately into the same wall.
+        if type(exc).__name__ == "RateLimitError":
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "The language model provider is rate limiting this app "
+                    "(free tier). Please try again shortly."
+                ),
+            )
         raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
 
     return JSONResponse(response.to_dict())

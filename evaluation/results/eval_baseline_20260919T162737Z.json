@@ -1,0 +1,168 @@
+{
+  "generated_at": "2026-09-19T16:27:37+00:00",
+  "model": "openai/gpt-oss-120b",
+  "runs": [
+    {
+      "summary": {
+        "label": "baseline",
+        "questions": 4,
+        "overall_pass_rate": 1.0,
+        "metrics": {
+          "groundedness": {
+            "rate": 1.0,
+            "n": 4
+          },
+          "citation_accuracy": {
+            "rate": 1.0,
+            "n": 4
+          },
+          "tool_selection": {
+            "rate": 1.0,
+            "n": 4
+          },
+          "workflow_completion": {
+            "rate": 1.0,
+            "n": 4
+          },
+          "escalation_accuracy": {
+            "rate": null,
+            "n": 0
+          },
+          "action_safety": {
+            "rate": null,
+            "n": 0
+          }
+        },
+        "by_category": {
+          "straightforward": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        "latency_ms": {
+          "p50": 29799.0,
+          "p95": 38152.0,
+          "mean": 21927.5,
+          "max": 38152.0
+        },
+        "total_tool_calls": 4
+      },
+      "results": [
+        {
+          "id": "Q01",
+          "category": "straightforward",
+          "question": "How much notice do I need to give for a 4-day PTO request?",
+          "answer": "You must submit the request at least **10 business days** before the first day of your 4‑day PTO block. The notice period is based on the number of PTO days requested, and a 3–5‑day request falls in the 10‑business‑day tier (PTO‑01 §3.1).",
+          "latency_ms": 4004,
+          "iterations": 2,
+          "tools_called": [
+            "search_policy_documents"
+          ],
+          "citations": [
+            "PTO-01 §3",
+            "APR-01 §2",
+            "PTO-01 §11"
+          ],
+          "unsupported_citations": [],
+          "checks": {
+            "groundedness": true,
+            "citation_accuracy": true,
+            "tool_selection": true,
+            "workflow_completion": true,
+            "escalation_accuracy": null,
+            "action_safety": null
+          },
+          "failures": [],
+          "passed": true
+        },
+        {
+          "id": "Q02",
+          "category": "straightforward",
+          "question": "Do I need a receipt for a $30 lunch?",
+          "answer": "Yes. Under the Expense and Reimbursement Policy a receipt is required for any expense **above $25** (EXP‑01 §3.2). Since a $30 lunch exceeds that threshold, you must attach the receipt when you submit the claim.",
+          "latency_ms": 15755,
+          "iterations": 2,
+          "tools_called": [
+            "search_policy_documents"
+          ],
+          "citations": [
+            "EXP-01 §3",
+            "APR-01 §4",
+            "EXP-01 §11",
+            "EXP-01 §2",
+            "EXP-01 §6"
+          ],
+          "unsupported_citations": [],
+          "checks": {
+            "groundedness": true,
+            "citation_accuracy": true,
+            "tool_selection": true,
+            "workflow_completion": true,
+            "escalation_accuracy": null,
+            "action_safety": null
+          },
+          "failures": [],
+          "passed": true
+        },
+        {
+          "id": "Q03",
+          "category": "straightforward",
+          "question": "How often are work laptops replaced?",
+          "answer": "Work laptops are refreshed on a **36‑month (3‑year) cycle**. When a laptop reaches 36 months IT initiates the replacement; employees do not need to request it. Early replacement is only allowed with manager + IT approval and documented failure (EQP‑01 §2.2; §2.3).",
+          "latency_ms": 38152,
+          "iterations": 2,
+          "tools_called": [
+            "search_policy_documents"
+          ],
+          "citations": [
+            "EQP-01 §2",
+            "APR-01 §5",
+            "EXP-01 §9",
+            "EQP-01 §6",
+            "EQP-01 §3"
+          ],
+          "unsupported_citations": [],
+          "checks": {
+            "groundedness": true,
+            "citation_accuracy": true,
+            "tool_selection": true,
+            "workflow_completion": true,
+            "escalation_accuracy": null,
+            "action_safety": null
+          },
+          "failures": [],
+          "passed": true
+        },
+        {
+          "id": "Q04",
+          "category": "straightforward",
+          "question": "I think I clicked a phishing link. How quickly must I report it?",
+          "answer": "You must report the phishing incident **within 2 hours of discovering it**. SEC‑01 §8 states that security incidents—including a phishing message that was acted on—must be reported within two hours of discovery. SEC‑01 §7 also says employees who click a phishing link are expected to “report it immediately,” which the 2‑hour window satisfies.  \n\n**Recommendation:** If you haven’t already, submit the report right away through the Security channel listed on the HR portal (or the out‑of‑hours contact if you’re not on site). This ensures the incident can be contained quickly.",
+          "latency_ms": 29799,
+          "iterations": 2,
+          "tools_called": [
+            "search_policy_documents"
+          ],
+          "citations": [
+            "SEC-01 §8",
+            "APR-01 §7",
+            "CON-01 §4",
+            "SEC-01 §7",
+            "TAX-01 §5"
+          ],
+          "unsupported_citations": [],
+          "checks": {
+            "groundedness": true,
+            "citation_accuracy": true,
+            "tool_selection": true,
+            "workflow_completion": true,
+            "escalation_accuracy": null,
+            "action_safety": null
+          },
+          "failures": [],
+          "passed": true
+        }
+      ]
+    }
+  ]
+}
