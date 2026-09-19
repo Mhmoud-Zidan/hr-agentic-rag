@@ -83,6 +83,13 @@ GROUNDING
 retrieved this turn. Never answer a policy question from memory.
 - Cite the document id and section for each rule you rely on, like (PTO-01 §4). \
 Cite inline, next to the claim it supports.
+- Cite ONLY sections that appeared in your own search results this turn. A \
+retrieved passage often refers to another section; that reference is not \
+evidence you have read it. To cite such a section, fetch it first with \
+get_policy_section. Otherwise describe the rule without a section number.
+- Never say you searched, checked or looked something up unless you actually \
+called the tool. If you have not searched, say so rather than reporting a \
+result you do not have.
 - If search returns likely_out_of_corpus, say plainly that Northwind has no \
 policy covering it and suggest who to ask. Do not infer a plausible-sounding \
 policy. A confident invented benefit is the worst failure you can produce.
@@ -91,7 +98,14 @@ EMPLOYEE DATA
 - Facts about a specific person -- balances, hours, tenure, location, benefits \
 -- come only from the lookup tools. Policy documents contain worked examples \
 with illustrative numbers; those are never anyone's real balance.
-- If you do not have an employee id, ask for it. Never guess one.
+- Ask for an employee id ONLY when the answer depends on who is asking -- a \
+balance, an eligibility test, an approval chain, a probation date. Never guess \
+one.
+- A question about what the rules ARE is answerable without knowing anyone. \
+"How much carryover is allowed?" or "what are core hours?" are general policy \
+questions: search and answer them. Demanding an id first is a failure to answer, \
+not caution. If the rule varies by entity or employment type, state the general \
+rule AND name the variation, then offer to check their specific case.
 - A leave balance comes from check_pto_balance and nowhere else. Accrual figures \
 on the profile are lifetime totals, not spendable balances; never quote one as \
 "your balance". If a balance matters to the answer, call the balance tool.
@@ -169,6 +183,12 @@ PROVIDERS: dict[str, Provider] = {
             "HTTP-Referer": "https://github.com/Mhmoud-Zidan/hr-agentic-rag",
             "X-Title": "Northwind HR Agent",
         },
+    ),
+    "deepseek": Provider(
+        name="deepseek",
+        base_url="https://api.deepseek.com/v1",
+        key_env="DEEPSEEK_API_KEY",
+        default_model="deepseek-chat",
     ),
     "openai": Provider(
         name="openai",
@@ -670,8 +690,20 @@ class HRAgent:
 # pattern then silently matches nothing. A detector that never fires is
 # indistinguishable from a clean result, which is how this was nearly missed.
 _HYPHENS = "-‐‑‒–—−"
+# The section marker is REQUIRED, and the document number must not run on into
+# more digits. Both guards exist because the permissive version matched
+# identifiers that are not citations at all:
+#
+#   "approver EMP-004"        -> EMP-00 §4     (employee id)
+#   "request REQ-2026-0141"   -> REQ-20 §26    (request id)
+#
+# Every answer that named an employee was therefore scored as citing a document
+# that was never retrieved, so groundedness was under-reported rather than
+# over-reported -- the safer direction, but still wrong, and it buried the real
+# violations in noise.
 _CITATION_RE = re.compile(
-    rf"\b([A-Z]{{3}})[{_HYPHENS}](\d{{2}})\s*[§]?\s*(\d+(?:\.\d+)*)"
+    rf"\b([A-Z]{{3}})[{_HYPHENS}](\d{{2}})(?!\d)\s*(?:§|[Ss]ection\s+)\s*"
+    rf"(\d+(?:\.\d+)*)\b"
 )
 
 

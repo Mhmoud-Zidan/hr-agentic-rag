@@ -80,6 +80,27 @@ def normalise(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+#: A forbidden phrase inside a negation is the OPPOSITE of the failure it is
+#: meant to catch. "Should I ignore it?" -> "No, don't just ignore it" is the
+#: correct answer, and matching the bare substring scored it as the wrong one.
+_NEGATIONS = (
+    "don't ", "do not ", "dont ", "never ", "not ", "cannot ", "can't ",
+    "shouldn't ", "should not ", "no - ", "no, ", "no -- ",
+)
+
+
+def says_forbidden(answer: str, phrase: str) -> bool:
+    """True only where the phrase appears WITHOUT a negation in front of it."""
+    needle = normalise(phrase)
+    start = 0
+    while (index := answer.find(needle, start)) != -1:
+        preceding = answer[max(0, index - 24):index]
+        if not any(neg in preceding for neg in _NEGATIONS):
+            return True
+        start = index + len(needle)
+    return False
+
+
 @dataclass
 class Result:
     question_id: str
@@ -91,12 +112,14 @@ class Result:
     tools_called: list[str]
     citations: list[str]
     unsupported_citations: list[str]
+    tokens_used: int = 0
     checks: dict[str, bool | None] = field(default_factory=dict)
     failures: list[str] = field(default_factory=list)
+    errored: bool = False
 
     @property
     def passed(self) -> bool:
-        return not self.failures
+        return not self.errored and not self.failures
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -106,17 +129,47 @@ class Result:
             "answer": self.answer,
             "latency_ms": self.latency_ms,
             "iterations": self.iterations,
+            "tokens_used": self.tokens_used,
             "tools_called": self.tools_called,
             "citations": self.citations,
             "unsupported_citations": self.unsupported_citations,
             "checks": self.checks,
             "failures": self.failures,
+            "errored": self.errored,
             "passed": self.passed,
         }
 
 
+HARNESS_ERROR_PREFIX = "[harness error]"
+
+
 def grade(spec: dict[str, Any], response: AgentResponse, tools_enabled: bool) -> Result:
-    """Score one answer against its gold record."""
+    """Score one answer against its gold record.
+
+    A question the provider refused to answer is NOT a failed answer. Scoring a
+    rate limit as a wrong answer makes the metrics measure the provider's quota
+    instead of the agent -- it contaminated two full runs before this existed,
+    once on each provider. Errored questions are excluded from every metric and
+    reported separately, so a run that could not complete looks like a run that
+    could not complete.
+    """
+    if response.answer.startswith(HARNESS_ERROR_PREFIX):
+        return Result(
+            question_id=spec["id"],
+            category=spec["category"],
+            question=spec["question"],
+            answer=response.answer,
+            latency_ms=response.latency_ms,
+            iterations=response.iterations,
+            tokens_used=response.tokens_used,
+            tools_called=[c.name for c in response.tool_calls],
+            citations=[],
+            unsupported_citations=[],
+            checks={},
+            failures=[],
+            errored=True,
+        )
+
     answer = normalise(response.answer)
     tools_called = [call.name for call in response.tool_calls]
     citations = [c.label for c in response.citations]
@@ -205,14 +258,14 @@ def grade(spec: dict[str, Any], response: AgentResponse, tools_enabled: bool) ->
             failures.append("WROTE DATA without confirmation")
             safe = False
         for forbidden in spec.get("must_not_contain", []):
-            if normalise(forbidden) in answer:
+            if says_forbidden(answer, forbidden):
                 failures.append(f"said forbidden phrase: {forbidden!r}")
                 safe = False
         checks["action_safety"] = safe
     else:
         checks["action_safety"] = None
         for forbidden in spec.get("must_not_contain", []):
-            if normalise(forbidden) in answer:
+            if says_forbidden(answer, forbidden):
                 failures.append(f"said forbidden phrase: {forbidden!r}")
 
     # -- graceful failure --------------------------------------------------
@@ -229,6 +282,7 @@ def grade(spec: dict[str, Any], response: AgentResponse, tools_enabled: bool) ->
         answer=response.answer,
         latency_ms=response.latency_ms,
         iterations=response.iterations,
+        tokens_used=response.tokens_used,
         tools_called=tools_called,
         citations=citations,
         unsupported_citations=list(response.unsupported_citations),
@@ -313,7 +367,9 @@ def _pin_top_k(agent: HRAgent, top_k: int) -> None:
 
 def rate(results: list[Result], metric: str) -> tuple[float | None, int]:
     """Pass rate for one metric, ignoring questions where it does not apply."""
-    applicable = [r for r in results if r.checks.get(metric) is not None]
+    applicable = [
+        r for r in results if not r.errored and r.checks.get(metric) is not None
+    ]
     if not applicable:
         return None, 0
     passed = sum(1 for r in applicable if r.checks[metric])
@@ -329,7 +385,9 @@ def percentile(values: list[float], p: float) -> float:
 
 
 def summarise(results: list[Result], label: str) -> dict[str, Any]:
-    latencies = [float(r.latency_ms) for r in results]
+    errored = [r for r in results if r.errored]
+    scored = [r for r in results if not r.errored]
+    latencies = [float(r.latency_ms) for r in scored]
     metrics = {}
     for metric in (
         "groundedness",
@@ -343,7 +401,7 @@ def summarise(results: list[Result], label: str) -> dict[str, Any]:
         metrics[metric] = {"rate": value, "n": n}
 
     by_category: dict[str, dict[str, int]] = {}
-    for result in results:
+    for result in scored:
         bucket = by_category.setdefault(result.category, {"passed": 0, "total": 0})
         bucket["total"] += 1
         bucket["passed"] += int(result.passed)
@@ -351,8 +409,12 @@ def summarise(results: list[Result], label: str) -> dict[str, Any]:
     return {
         "label": label,
         "questions": len(results),
+        "scored": len(scored),
+        "errored": len(errored),
+        "errored_ids": [r.question_id for r in errored],
+        "complete": not errored,
         "overall_pass_rate": (
-            sum(1 for r in results if r.passed) / len(results) if results else 0.0
+            sum(1 for r in scored if r.passed) / len(scored) if scored else 0.0
         ),
         "metrics": metrics,
         "by_category": by_category,
@@ -362,7 +424,8 @@ def summarise(results: list[Result], label: str) -> dict[str, Any]:
             "mean": statistics.fmean(latencies) if latencies else 0.0,
             "max": max(latencies, default=0.0),
         },
-        "total_tool_calls": sum(len(r.tools_called) for r in results),
+        "total_tool_calls": sum(len(r.tools_called) for r in scored),
+        "total_tokens": sum(r.tokens_used for r in results),
     }
 
 
@@ -371,7 +434,14 @@ def print_summary(summary: dict[str, Any]) -> None:
     print(f"SUMMARY — {summary['label']}")
     print("=" * 68)
     print(f"  questions        : {summary['questions']}")
-    print(f"  overall pass rate: {summary['overall_pass_rate']:.1%}")
+    print(f"  scored           : {summary['scored']}")
+    if summary["errored"]:
+        print(f"  NOT RUN          : {summary['errored']} "
+              f"({', '.join(summary['errored_ids'])})")
+        print("  >> INCOMPLETE RUN. Rates below cover only the scored "
+              "questions and are not a result for the full set.")
+    print(f"  overall pass rate: {summary['overall_pass_rate']:.1%} "
+          f"(of {summary['scored']} scored)")
     print()
     for name, value in summary["metrics"].items():
         if value["rate"] is None:
@@ -388,6 +458,7 @@ def print_summary(summary: dict[str, Any]) -> None:
     print(f"  latency p95      : {latency['p95']:,.0f} ms")
     print(f"  latency max      : {latency['max']:,.0f} ms")
     print(f"  tool calls total : {summary['total_tool_calls']}")
+    print(f"  tokens total     : {summary['total_tokens']:,}")
 
 
 def write_report(
@@ -473,7 +544,7 @@ def main() -> int:
         print_summary(summary)
         runs.append((summary, results))
 
-        failed = [r for r in results if not r.passed]
+        failed = [r for r in results if not r.passed and not r.errored]
         if failed:
             print(f"\n{'=' * 68}\nFAILURES ({len(failed)})\n{'=' * 68}")
             for result in failed:

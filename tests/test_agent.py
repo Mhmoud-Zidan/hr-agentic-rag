@@ -262,3 +262,24 @@ def test_any_openai_compatible_endpoint_works_via_env(monkeypatch):
     provider = resolve_provider("custom")
     assert provider.base_url == "https://example.test/v1"
     assert provider.default_model == "some-model"
+
+
+def test_employee_id_is_not_read_as_a_citation():
+    """"approver EMP-004" parsed as "EMP-00 §4" before the section marker
+    was required, so every answer naming an employee looked ungrounded."""
+    retrieved = [cite("PTO-01", "2")]
+    answer = "Request REQ-2026-0141 for 2 days, approver EMP-004."
+    assert find_unsupported_citations(answer, retrieved) == []
+
+
+def test_unknown_employee_id_is_not_read_as_a_citation():
+    assert find_unsupported_citations("No employee with ID EMP-999 exists.", []) == []
+
+
+def test_section_word_form_is_still_detected():
+    assert find_unsupported_citations("See PTO-01 section 9.", []) == ["PTO-01 §9"]
+
+
+def test_bare_doc_id_without_a_section_is_not_a_citation():
+    """"REM-01 covers this" names a document, it does not cite a section."""
+    assert find_unsupported_citations("REM-01 covers travel.", []) == []

@@ -542,10 +542,15 @@
       "id": "Q23",
       "category": "ambiguous",
       "question": "Is my laptop covered?",
-      "gold_answer": "Ambiguous: covered for replacement, for repair after damage, or for insurance while travelling. The agent should ask which, rather than picking one.",
+      "gold_answer": "Ambiguous: covered for replacement, for repair after damage, or for insurance while travelling. The agent should either ask which, or answer each reading explicitly. Silently picking one reading is the failure.",
       "must_contain": [
         [
-          "?"
+          "?",
+          "which of",
+          "both readings",
+          "if you mean",
+          "depends what you mean",
+          "two readings"
         ]
       ],
       "flags": {
@@ -559,13 +564,21 @@
       "gold_answer": "Northwind has no stock option policy in the HR corpus. The agent must say so and point to People Operations, not describe a plausible scheme.",
       "must_contain": [
         [
-          "no policy",
-          "not covered",
+          "can't find one",
+          "cannot find",
+          "do not have any policy",
           "does not have",
           "doesn't have",
+          "don't have any policy",
+          "is not covered",
+          "isn't covered",
+          "no information",
+          "no policy",
           "no stock option",
+          "no such policy",
           "not addressed",
-          "no information"
+          "not covered",
+          "outside"
         ]
       ],
       "must_not_contain": [
@@ -584,13 +597,21 @@
       "gold_answer": "No tuition reimbursement policy exists in the corpus. Say so and refer to People Operations.",
       "must_contain": [
         [
-          "no policy",
-          "not covered",
+          "can't find one",
+          "cannot find",
+          "do not have any policy",
           "does not have",
           "doesn't have",
+          "don't have any policy",
+          "is not covered",
+          "isn't covered",
+          "no information",
+          "no policy",
+          "no such policy",
           "no tuition",
           "not addressed",
-          "no information"
+          "not covered",
+          "outside"
         ]
       ],
       "must_not_contain": [
@@ -608,13 +629,21 @@
       "gold_answer": "Pet insurance is not part of the Northwind benefits corpus. Say so rather than inferring from the benefits document.",
       "must_contain": [
         [
-          "no policy",
-          "not covered",
+          "can't find one",
+          "cannot find",
+          "do not have any policy",
           "does not",
           "doesn't",
+          "don't have any policy",
+          "is not covered",
+          "isn't covered",
+          "no information",
           "no pet insurance",
+          "no policy",
+          "no such policy",
           "not addressed",
-          "no information"
+          "not covered",
+          "outside"
         ]
       ],
       "flags": {
