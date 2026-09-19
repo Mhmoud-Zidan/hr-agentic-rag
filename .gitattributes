@@ -1,0 +1,19 @@
+# Normalise line endings.
+#
+# This repo is developed on Windows and runs on Linux. With core.autocrlf=true
+# a checkout can hand the container CRLF files, and CRLF is not whitespace to a
+# shell: a script with it fails as "\r: command not found", and the error names
+# a character you cannot see. Pin everything the container executes or parses
+# to LF regardless of platform.
+* text=auto
+
+Dockerfile   text eol=lf
+*.sh         text eol=lf
+*.py         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.json       text eol=lf
+*.md         text eol=lf
+*.html       text eol=lf
+*.txt        text eol=lf
+.env.example text eol=lf
