@@ -25,18 +25,30 @@
     }
   }
   * { box-sizing: border-box; }
+  /* Column layout: header, scrolling log, composer. The composer is a normal
+     flex child rather than position:fixed, so the log physically cannot run
+     underneath it. The previous version reserved space by measuring the
+     composer in JS -- that was stale whenever the controls rewrapped, and it
+     only ever approximated what flexbox guarantees. */
   body {
     margin: 0; background: var(--bg); color: var(--ink);
     font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+    height: 100dvh;   /* dvh, so a mobile URL bar appearing does not clip it */
   }
   header {
+    flex: none;
     padding: 18px 20px; border-bottom: 1px solid var(--line);
-    background: var(--panel); position: sticky; top: 0; z-index: 5;
+    background: var(--panel);
   }
   header h1 { margin: 0; font-size: 17px; }
   header p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
   #status { float: right; font-size: 12px; color: var(--muted); }
-  main { max-width: 820px; margin: 0 auto; padding: 20px 16px 140px; }
+  /* The only scrolling region. */
+  main {
+    flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+    width: 100%; max-width: 820px; margin: 0 auto; padding: 20px 16px 24px;
+  }
 
   .msg { margin-bottom: 18px; }
   .msg .who {
@@ -96,7 +108,7 @@
   }
 
   form {
-    position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel);
+    flex: none; background: var(--panel);
     border-top: 1px solid var(--line); padding: 12px 16px;
   }
   .row { max-width: 820px; margin: 0 auto; display: flex; gap: 9px; }
@@ -136,6 +148,10 @@
     .tag.free { background: #1e2d1f; color: #9ed4a0; }
   }
   .model-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  @media (max-width: 600px), (max-height: 620px) {
+    .examples { display: none; }
+    header p { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -207,7 +223,7 @@ function addMessage(role, text) {
   const bubble = el('div', 'bubble plain', text);
   wrap.appendChild(bubble);
   log.appendChild(wrap);
-  window.scrollTo(0, document.body.scrollHeight);
+  scrollToLatest();
   return wrap;
 }
 
@@ -355,6 +371,13 @@ function render(wrap, data) {
   }
 }
 
+// `main` is the scrolling region now, not the window.
+function scrollToLatest() {
+  requestAnimationFrame(() => {
+    log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' });
+  });
+}
+
 const providerSelect = document.getElementById('provider');
 const providerTag = document.getElementById('provider-tag');
 const providerNote = document.getElementById('provider-note');
@@ -454,9 +477,14 @@ form.onsubmit = async (event) => {
   } finally {
     send.disabled = false;
     input.focus();
-    window.scrollTo(0, document.body.scrollHeight);
+    scrollToLatest();
   }
 };
+
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+});
 
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
