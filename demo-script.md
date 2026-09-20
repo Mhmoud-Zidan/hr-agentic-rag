@@ -1,5 +1,17 @@
 # Demo script — 9 minutes
 
+Slides: **`demo-deck.pptx`** (12 slides, speaker notes on every one).
+Slides 6 and 7 are the cue to switch to the live app — everything else is
+presented from the deck.
+
+| Slides | Content | Time |
+|---|---|---|
+| 1-5 | Title, the problem, architecture, corpus, the eight tools | ~2 min |
+| 6 | **Switch to the live app** — Task 1 | ~2 min |
+| 7 | **Stay in the app** — Task 2, three messages | ~2.5 min |
+| 8-11 | Guardrails, evaluation, ablation, engineering | ~2 min |
+| 12 | Limitations and links | ~30 s |
+
 **Before you hit record**
 
 1. Open https://northwind-hr-agent-fyp7.onrender.com/health a minute early. Free
